@@ -141,8 +141,10 @@ def main(argv=None) -> None:
     mem = constituents.load_membership()
     if not a.skip_constituents:
         try:
-            mem = constituents.update_membership(constituents.fetch_current(), today)
-            constituents.save_membership(mem)
+            current = constituents.fetch_current()
+            if current:
+                mem = constituents.update_membership(current, today)
+                constituents.save_membership(mem)
         except Exception as e:
             log.error("Aggiornamento composizione indici fallito, uso l'elenco salvato: %s", e)
     if mem.empty:

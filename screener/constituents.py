@@ -6,6 +6,7 @@ file data/membership.csv con active=False e la data di uscita.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date
 from io import StringIO
 
@@ -28,32 +29,59 @@ def to_yahoo(sym: str) -> str:
     return str(sym).strip().upper().replace(".", "-")
 
 
+def _clean_cols(t: pd.DataFrame) -> pd.DataFrame:
+    """Appiattisce intestazioni multiple e toglie le note tipo 'Ticker[3]'."""
+    cols = []
+    for c in t.columns:
+        c = " ".join(str(x) for x in c) if isinstance(c, tuple) else str(c)
+        cols.append(re.sub(r"\[.*?\]", "", c).strip())
+    t = t.copy()
+    t.columns = cols
+    return t
+
+
+def _col(t: pd.DataFrame, *keys: str) -> str | None:
+    for k in keys:
+        for c in t.columns:
+            if k.lower() in c.lower():
+                return c
+    return None
+
+
 def _pick_table(html: str, min_rows: int, max_rows: int) -> pd.DataFrame:
-    tables = pd.read_html(StringIO(html))
-    for t in tables:
-        cols = [str(c) for c in t.columns]
-        if any(c in ("Symbol", "Ticker") for c in cols) and min_rows <= len(t) <= max_rows:
+    seen = []
+    for t in pd.read_html(StringIO(html)):
+        t = _clean_cols(t)
+        seen.append(f"{len(t)} righe {list(t.columns)[:6]}")
+        if _col(t, "symbol", "ticker") and min_rows <= len(t) <= max_rows:
             return t
-    raise ValueError("tabella dei costituenti non trovata")
+    raise ValueError("tabella dei costituenti non trovata. Tabelle viste: " + " | ".join(seen[:8]))
 
 
 def fetch_current() -> dict[str, pd.DataFrame]:
-    """Scarica l'elenco attuale dei titoli. Ritorna {indice: DataFrame(ticker, name, gics_sector)}."""
+    """Scarica l'elenco attuale dei titoli. Ritorna {indice: DataFrame(ticker, name, gics_sector)}.
+
+    Se un indice non si riesce a leggere viene saltato: per quell'indice resta valido
+    l'elenco salvato in data/membership.csv.
+    """
     out = {}
     for idx, url in INDEXES.items():
-        html = http_get(url, headers={"User-Agent": GENERIC_UA}).text
-        lo, hi = (480, 520) if idx == "S&P 500" else (95, 110)
-        t = _pick_table(html, lo, hi)
-        sym = "Symbol" if "Symbol" in t.columns else "Ticker"
-        name = next((c for c in ("Security", "Company") if c in t.columns), sym)
-        sector = next((c for c in t.columns if "Sector" in str(c)), None)
-        df = pd.DataFrame({
-            "ticker": t[sym].map(to_yahoo),
-            "name": t[name].astype(str),
-            "gics_sector": t[sector].astype(str) if sector else "",
-        })
-        out[idx] = df
-        log.info("%s: %d titoli", idx, len(df))
+        try:
+            html = http_get(url, headers={"User-Agent": GENERIC_UA}).text
+            lo, hi = (480, 520) if idx == "S&P 500" else (95, 110)
+            t = _pick_table(html, lo, hi)
+            sym = _col(t, "symbol", "ticker")
+            name = _col(t, "security", "company", "name") or sym
+            sector = _col(t, "sector")
+            df = pd.DataFrame({
+                "ticker": t[sym].map(to_yahoo),
+                "name": t[name].astype(str),
+                "gics_sector": t[sector].astype(str) if sector else "",
+            })
+            out[idx] = df[df["ticker"].str.len() > 0]
+            log.info("%s: %d titoli", idx, len(out[idx]))
+        except Exception as e:
+            log.error("%s: elenco titoli non aggiornato (%s)", idx, e)
     return out
 
 
