@@ -17,7 +17,7 @@ import pandas as pd
 
 from . import constituents, scoring
 from .config import DATA_DIR, DOCS_DIR, load_config
-from .metrics import SECTOR_IT, Engine, group_for, norm_sector
+from .metrics import SECTOR_IT, Engine, group_for, norm_sector, price_block
 from .model import Datum
 from .sources import finviz, macro, sec
 from .sources import yahoo as yh
@@ -96,6 +96,7 @@ def evaluate(u: dict, fv_all: dict, macro_d: dict, cfg: dict, prev: dict, today:
         "industry": industry, "group": group, "group_name": cfg["groups"].get(group, {}).get("name", group),
         "tech_ai": group == "tech_ai", "cik": sec.cik_str(t),
         "price": info.get("currentPrice") or info.get("regularMarketPrice"), "currency": info.get("currency", "USD"),
+        "quote": price_block(y),
         "market_cap": info.get("marketCap"),
         "memberships": list(u["memberships"].values()), "secondary": sorted(u["secondary"]),
         "updated": today, "stale": False,
@@ -120,6 +121,9 @@ def save_history(records: list[dict], today: str) -> None:
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     rows = []
     for r in records:
+        q = r.get("quote") or {}
+        rows.append({"date": today, "ticker": r["ticker"], "metric": "price", "value": q.get("price"),
+                     "label": "", "source": q.get("src", ""), "deduced": False, "stale": r.get("stale", False)})
         for m, d in r["metrics"].items():
             rows.append({"date": today, "ticker": r["ticker"], "metric": m, "value": d.get("v"),
                          "label": d.get("label", ""), "source": d.get("src", ""), "deduced": d.get("deduced", False),

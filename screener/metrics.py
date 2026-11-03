@@ -290,6 +290,40 @@ class Engine:
                              f"/ ricavi {fmt_money(rev)} = {v}%", docs=[x for x in (d1, d2, d3) if x])
         return self.cascade(calc)
 
+    def fcf(self) -> Datum:
+        """Free Cash Flow assoluto ultimi 12 mesi, dal rendiconto finanziario."""
+        annual = sorted(yh.annual_series(self.y.cf_a, "Free Cash Flow").items())
+        hist = "; ".join(f"{yh.d(k)[:4]}: {fmt_money(v)}" for k, v in annual)
+        note = f"Esercizi annuali → {hist}" if hist else ""
+
+        def direct():
+            v, dt = yh.latest(self.y.cf_ttm, "Free Cash Flow")
+            if v is None:
+                return None
+            return Datum(v=round(v), src=yh.SRC,
+                         definition="Free Cash Flow ultimi 12 mesi (rendiconto finanziario Yahoo: flusso operativo − capex)",
+                         docs=[self.ydoc("cash-flow", f"rendiconto finanziario TTM al {yh.d(dt)}")],
+                         note=note, series=[v for _, v in annual])
+
+        def quarters():
+            v, doc = self.ttm("Free Cash Flow", "Free Cash Flow", kind="cf")
+            if v is None:
+                return None
+            return Datum(v=round(v), src=yh.SRC + " (calcolato)", deduced=True,
+                         definition="Somma del Free Cash Flow degli ultimi 4 trimestri (rendiconto finanziario Yahoo)",
+                         why=f"Somma 4 trimestri = {fmt_money(v)}", docs=[doc], note=note, series=[v for _, v in annual])
+
+        def last_year():
+            if not annual:
+                return None
+            dt, v = annual[-1]
+            return Datum(v=round(v), src=yh.SRC + " (ultimo esercizio)", deduced=True,
+                         definition="Free Cash Flow dell'ultimo esercizio annuale (dato TTM non disponibile)",
+                         why=f"Dato TTM non disponibile: uso l'esercizio chiuso il {yh.d(dt)} = {fmt_money(v)}",
+                         docs=[self.ydoc("cash-flow", f"rendiconto annuale {yh.d(dt)}")], note=note,
+                         series=[x for _, x in annual])
+        return self.cascade(direct, quarters, last_year)
+
     # ------------------------------------------------------------ CRESCITA
     def _cagr3(self, label: str, y_rows: tuple, sec_concepts: list, unit="USD", fcf=False) -> Datum:
         def from_series(series: list[tuple], src: str, docs_fn):
@@ -489,7 +523,7 @@ class Engine:
 
     # ============================================================ RUN
     def run(self, skip: set[str]) -> dict[str, Datum]:
-        order = ["roic", "wacc", "roe", "op_margin", "fcf_margin", "rev_cagr3", "eps_cagr3", "fcf_cagr3", "roic_3y",
+        order = ["roic", "wacc", "roe", "op_margin", "fcf", "fcf_margin", "rev_cagr3", "eps_cagr3", "fcf_cagr3", "roic_3y",
                  "nd_ebitda", "de", "current_ratio", "pe_ttm", "pe_fwd", "ev_ebitda", "ev_sales",
                  "rote", "ptbv", "cet1", "pb", "combined_ratio", "p_ffo"]
         for m in order:
@@ -524,3 +558,44 @@ class Engine:
             else:
                 o["ebit_yield_rule"] = missing("manca EBIT margin o EV/Sales")
         return o
+
+
+# ============================================================ PREZZO
+PERIODS = [("1G", None), ("1S", 7), ("1M", 30), ("3M", 91), ("6M", 182), ("YTD", "ytd"),
+           ("1A", 365), ("3A", 1095), ("5A", 1826)]
+
+
+def price_block(y: YahooData) -> dict:
+    """Prezzo attuale, variazioni % e storico per il grafico (settimanale 5 anni + giornaliero 3 mesi)."""
+    import pandas as pd
+
+    h = y.hist
+    info = y.info
+    out = {"src": yh.SRC, "currency": info.get("currency", "USD"),
+           "url": y.url("history")}
+    if h is None or h.empty:
+        p = _f(info.get("currentPrice") or info.get("regularMarketPrice"))
+        out.update(price=p, date=None, changes={}, weekly=[], daily=[],
+                   note="storico prezzi non disponibile")
+        return out
+    last_dt, last = h.index[-1], float(h.iloc[-1])
+    changes = {}
+    for label, days in PERIODS:
+        if days is None:
+            ref = h.iloc[-2] if len(h) > 1 else None
+        elif days == "ytd":
+            prev = h[h.index < pd.Timestamp(year=last_dt.year, month=1, day=1)]
+            ref = prev.iloc[-1] if len(prev) else None
+        else:
+            prev = h[h.index <= last_dt - pd.Timedelta(days=days)]
+            ref = prev.iloc[-1] if len(prev) else None
+        changes[label] = round((last / float(ref) - 1) * 100, 2) if ref else None
+    to_int = lambda ts: int(ts.strftime("%Y%m%d"))
+    weekly = h.resample("W-FRI").last().dropna()
+    daily = h[h.index > last_dt - pd.Timedelta(days=92)]
+    out.update(price=round(last, 2), date=last_dt.date().isoformat(), changes=changes,
+               weekly=[[to_int(i), round(float(v), 2)] for i, v in weekly.items()],
+               daily=[[to_int(i), round(float(v), 2)] for i, v in daily.items()],
+               high_52w=round(float(h[h.index > last_dt - pd.Timedelta(days=365)].max()), 2),
+               low_52w=round(float(h[h.index > last_dt - pd.Timedelta(days=365)].min()), 2))
+    return out

@@ -38,13 +38,17 @@ def fake(ticker="TEST", sector="Technology", industry="Software - Infrastructure
                    "Current Assets": [600] * 5, "Current Liabilities": [400] * 5,
                    "Tangible Book Value": [700] * 5}, QUARTERS)
     cf_q = frame({"Operating Cash Flow": [120, 115, 110, 105, 100], "Capital Expenditure": [-25] * 5,
-                  "Depreciation And Amortization": [30] * 5}, QUARTERS)
+                  "Depreciation And Amortization": [30] * 5, "Free Cash Flow": [95, 90, 85, 80, 75]}, QUARTERS)
+    cf_a = cf_a.T.assign(**{"Free Cash Flow": [350, 310, 280, 250]}).T
+    cf_ttm = frame({"Free Cash Flow": [350]}, pd.to_datetime(["2025-09-30"]))
+    days = pd.bdate_range("2021-01-04", "2025-10-31")
+    hist = pd.Series([50 + i * 0.04 for i in range(len(days))], index=days)
     info = {"quoteType": "EQUITY", "longName": f"{ticker} Inc", "sector": sector, "industry": industry,
             "returnOnEquity": 0.31, "operatingMargins": 0.30, "currentRatio": 1.5, "debtToEquity": 30.0,
             "trailingPE": 28.0, "forwardPE": 24.0, "trailingEps": -1.0 if neg_eps else 3.0, "forwardEps": 3.5,
             "enterpriseToEbitda": 18.0, "enterpriseToRevenue": 6.0, "ebitda": 520.0, "totalDebt": 300.0,
             "totalCash": 200.0, "beta": 1.2, "marketCap": 9000.0, "priceToBook": 3.0, "currentPrice": 100.0}
-    return YahooData(ticker, info, inc_a, bal_a, cf_a, inc_q, bal_q, cf_q)
+    return YahooData(ticker, info, inc_a, bal_a, cf_a, inc_q, bal_q, cf_q, cf_ttm, hist)
 
 
 MACRO = {"rf": Datum(v=4.0, docs=[]), "erp": Datum(v=5.0, docs=[])}
@@ -76,6 +80,21 @@ def test_core_metrics():
     exp = 9000 / 9300 * 10 + 300 / 9300 * 4 * 0.8
     assert o["wacc"].v == pytest.approx(exp, abs=0.01)
     assert o["roic_vs_wacc"].v is True
+
+
+def test_fcf_and_price():
+    y = fake()
+    o = Engine("TEST", y, None, MACRO, CFG).run(set(CFG["skip_by_group"]["default"]))
+    assert o["fcf"].v == 350 and not o["fcf"].deduced and o["fcf"].series == [250, 280, 310, 350]
+    y.cf_ttm = pd.DataFrame()
+    assert Engine("TEST", y, None, MACRO, CFG).fcf().v == 95 + 90 + 85 + 80
+    from screener.metrics import price_block
+    q = price_block(fake())
+    last = 50 + (len(fake().hist) - 1) * 0.04
+    assert q["price"] == round(last, 2) and q["date"] == "2025-10-31"
+    assert q["changes"]["1G"] == round((last / (last - 0.04) - 1) * 100, 2)
+    assert q["changes"]["1A"] > 0 and q["weekly"] and 55 <= len(q["daily"]) <= 70
+    assert q["weekly"][-1][0] == 20251031
 
 
 def test_negative_values_no_judgment():
@@ -147,6 +166,8 @@ def test_full_run_offline(tmp_path, monkeypatch):
     html = (tmp_path / "docs" / "index.html").read_text()
     assert "__DATA__" not in html and "AAPL" in html
     assert list((tmp_path / "history").glob("*.csv.gz"))
+    assert recs["AAPL"]["quote"]["price"] and recs["AAPL"]["metrics"]["fcf"]["v"] == 350
+    assert "fcf" not in recs["JPM"]["metrics"]
 
     # settimana dopo: JPM esce dall'indice e Yahoo non risponde per O -> nulla viene eliminato
     sp2 = sp[sp.ticker != "JPM"]

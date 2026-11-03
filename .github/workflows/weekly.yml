@@ -3,6 +3,9 @@ name: Aggiornamento settimanale
 on:
   schedule:
     - cron: "17 5 * * 6"      # ogni sabato alle 05:17 UTC (mercati chiusi)
+  push:                       # riparte da solo quando cambiano codice o criteri su main
+    branches: [main]
+    paths: ["screener/**", "config/**", "requirements.txt"]
   workflow_dispatch:          # avvio manuale dal tab Actions
     inputs:
       limit:

@@ -21,6 +21,8 @@ class YahooData:
     inc_q: pd.DataFrame = field(default_factory=pd.DataFrame)   # trimestrali
     bal_q: pd.DataFrame = field(default_factory=pd.DataFrame)
     cf_q: pd.DataFrame = field(default_factory=pd.DataFrame)
+    cf_ttm: pd.DataFrame = field(default_factory=pd.DataFrame)  # rendiconto finanziario ultimi 12 mesi
+    hist: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))  # prezzi di chiusura giornalieri, 5 anni
 
     def url(self, page: str = "") -> str:
         return f"https://finance.yahoo.com/quote/{self.ticker}/{page}".rstrip("/")
@@ -36,13 +38,21 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
             d = YahooData(ticker=ticker, info=t.info or {})
             for attr, name in (("inc_a", "income_stmt"), ("bal_a", "balance_sheet"), ("cf_a", "cashflow"),
                                ("inc_q", "quarterly_income_stmt"), ("bal_q", "quarterly_balance_sheet"),
-                               ("cf_q", "quarterly_cashflow")):
+                               ("cf_q", "quarterly_cashflow"), ("cf_ttm", "ttm_cashflow")):
                 try:
                     df = getattr(t, name)
                     if df is not None and not df.empty:
                         setattr(d, attr, df.sort_index(axis=1, ascending=False))
                 except Exception as e:  # una tabella mancante non blocca il resto
                     log.debug("%s %s: %s", ticker, name, e)
+            try:
+                h = t.history(period="5y", interval="1d", auto_adjust=False)
+                if h is not None and not h.empty:
+                    c = h["Close"].dropna()
+                    c.index = pd.to_datetime(c.index).tz_localize(None).normalize()
+                    d.hist = c
+            except Exception as e:
+                log.debug("%s history: %s", ticker, e)
             if not d.info or d.info.get("quoteType") is None and d.inc_a.empty:
                 raise RuntimeError("risposta vuota")
             return d

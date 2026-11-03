@@ -54,6 +54,12 @@ criteria:
       - {label: Molto buono, gt: 25}
       - {label: Buono, gt: 15}
 
+  fcf:
+    name: Free Cash Flow (TTM)
+    area: Redditività
+    unit: money
+    help: Free Cash Flow degli ultimi 12 mesi dal rendiconto finanziario (flusso operativo − capex). Nessuna soglia nel documento.
+
   fcf_margin:
     name: FCF Margin (TTM)
     area: Redditività
@@ -219,8 +225,8 @@ criteria:
 # Metriche da NON calcolare per gruppo (non hanno senso per quel business)
 # ------------------------------------------------------------------------
 skip_by_group:
-  bank:      [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf_margin, fcf_cagr3, op_margin, pb, combined_ratio, p_ffo]
-  insurance: [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf_margin, fcf_cagr3, ptbv, rote, cet1, p_ffo]
+  bank:      [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr3, op_margin, pb, combined_ratio, p_ffo]
+  insurance: [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr3, ptbv, rote, cet1, p_ffo]
   reit:      [pe_ttm, pe_fwd, fwd_lt_ttm, rote, ptbv, cet1, pb, combined_ratio]
   default:   [rote, ptbv, cet1, pb, combined_ratio, p_ffo]
 

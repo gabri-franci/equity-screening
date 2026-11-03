@@ -6,6 +6,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 MARKETS = ["S&P 500", "NASDAQ 100"]
+PRICE_CHG = ["1G", "1S", "1M", "3M", "6M", "YTD", "1A", "3A", "5A"]
 FILL = {"Molto buono": "C6EFCE", "Molto bene": "C6EFCE", "Buono": "E2F0D9", "Bene": "E2F0D9",
         "Nella fascia": "E2F0D9", "Sì": "E2F0D9", "Sopra fascia": "FCE4D6", "Sotto fascia": "DDEBF7", "No": "FCE4D6"}
 HEAD = Font(bold=True, color="FFFFFF")
@@ -38,7 +39,8 @@ def write(data: dict, path) -> None:
     wb.remove(wb.active)
     for market in MARKETS:
         ws = wb.create_sheet(market)
-        cols = ["Settore", "Ticker", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato"]
+        cols = ["Settore", "Ticker", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato",
+                "Prezzo", "Valuta", "Data prezzo"] + [f"Var. {p} %" for p in PRICE_CHG]
         for m in metrics:
             cols += [crit[m]["name"], "Giudizio"]
         _header(ws, cols)
@@ -47,6 +49,9 @@ def write(data: dict, path) -> None:
             row = [r["sector_it"], r["ticker"], r["name"], r["group_name"], _status(r, market), _other(r, market),
                    ", ".join(r.get("secondary", [])),
                    r["updated"] + (" (dati non aggiornati)" if r.get("stale") else "")]
+            q = r.get("quote") or {}
+            row += [q.get("price"), q.get("currency", ""), q.get("date", "")]
+            row += [(q.get("changes") or {}).get(p) for p in PRICE_CHG]
             for m in metrics:
                 d = r["metrics"].get(m)
                 if d is None:
@@ -82,6 +87,16 @@ def write(data: dict, path) -> None:
     for r in data["records"]:
         for x in r["memberships"]:
             ws.append([r["ticker"], x["index"], r["name"], x["first_seen"], "Attivo" if x["active"] else "Uscito", x["removed_on"]])
+
+    # storico prezzi settimanale (chiusura del venerdì), una colonna per titolo
+    ws = wb.create_sheet("Storico prezzi")
+    recs = [r for r in data["records"] if (r.get("quote") or {}).get("weekly")]
+    dates = sorted({d for r in recs for d, _ in r["quote"]["weekly"]})
+    _header(ws, ["Data (venerdì)"] + [r["ticker"] for r in recs])
+    ws.freeze_panes = "B2"
+    lookup = [{d: v for d, v in r["quote"]["weekly"]} for r in recs]
+    for d in dates:
+        ws.append([f"{str(d)[:4]}-{str(d)[4:6]}-{str(d)[6:]}"] + [lk.get(d) for lk in lookup])
 
     ws = wb.create_sheet("Note")
     ws.append(["Generato", data["generated"]])
