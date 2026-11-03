@@ -263,14 +263,17 @@ function drawChart(r, range){
   let pts = (kind==='daily' ? q.daily : q.weekly) || [];
   const last = pts.length ? toDate(pts[pts.length-1][0]) : new Date();
   const from = days==='ytd' ? new Date(last.getFullYear(),0,1) : new Date(last - days*864e5);
-  pts = pts.filter(p => toDate(p[0]) >= from);
+  // parte dall'ultima chiusura disponibile prima dell'inizio del periodo (stessa base delle variazioni %)
+  let start = 0;
+  pts.forEach((p, i) => { if(toDate(p[0]) <= from) start = i });
+  pts = pts.slice(start);
   if(kind==='weekly' && q.daily && q.daily.length){ // aggiunge l'ultima chiusura giornaliera
     const ld = q.daily[q.daily.length-1]; if(!pts.length || pts[pts.length-1][0] < ld[0]) pts.push(ld);
   }
   if(pts.length < 2){ box.innerHTML = '<div class="sub">Dati insufficienti per questo periodo</div>'; return }
   const W=560, H=200, L=44, R=10, T=10, B=22;
   const ys = pts.map(p => p[1]); let lo = Math.min(...ys), hi = Math.max(...ys);
-  const pad = (hi-lo)*0.08 || hi*0.02; lo -= pad; hi += pad;
+  const pad = (hi-lo)*0.08 || hi*0.02; lo = Math.max(0, lo - pad); hi += pad;
   const x = i => L + i*(W-L-R)/(pts.length-1), y = v => T + (hi-v)*(H-T-B)/(hi-lo);
   let g = '';
   for(let k=0;k<=3;k++){ const v = lo + (hi-lo)*k/3, yy = y(v);
@@ -281,7 +284,7 @@ function drawChart(r, range){
     '<path class="line" d="'+d+'"/><line class="hair" id="hair" y1="'+T+'" y2="'+(H-B)+'" style="display:none"/>'+
     '<circle class="dot" id="hdot" r="4" style="display:none"/><rect x="'+L+'" y="0" width="'+(W-L-R)+'" height="'+H+'" fill="transparent" id="hit"/></svg><div class="tip" id="tip"></div>';
   const chg = (pts[pts.length-1][1]/pts[0][1]-1)*100;
-  document.getElementById('chartcap').innerHTML = 'Variazione nel periodo '+range+': '+pctChg(chg)+' · '+(kind==='daily'?'chiusure giornaliere':'chiusure settimanali (venerdì)');
+  document.getElementById('chartcap').innerHTML = 'Variazione nel periodo '+range+': '+pctChg(chg)+' · '+(kind==='daily'?'chiusure giornaliere':'chiusure settimanali');
   const svg = box.querySelector('svg'), hit = document.getElementById('hit'), tip = document.getElementById('tip');
   const hair = document.getElementById('hair'), dot = document.getElementById('hdot');
   const move = ev => {

@@ -593,7 +593,11 @@ def price_block(y: YahooData) -> dict:
             ref = prev.iloc[-1] if len(prev) else None
         changes[label] = round((last / float(ref) - 1) * 100, 2) if ref else None
     to_int = lambda ts: int(ts.strftime("%Y%m%d"))
-    weekly = h[h.index > last_dt - pd.DateOffset(years=5)].resample("W-FRI").last().dropna()
+    # ultima chiusura reale di ogni settimana (data vera, non il venerdì "teorico"),
+    # più il punto immediatamente precedente ai 5 anni, così il grafico 5A parte dalla stessa base del riquadro
+    weekly = h.groupby(h.index.to_period("W-FRI")).tail(1)
+    weekly = weekly[weekly.index >= (weekly[weekly.index <= last_dt - pd.Timedelta(days=1826)].index.max()
+                                     if (weekly.index <= last_dt - pd.Timedelta(days=1826)).any() else weekly.index[0])]
     daily = h[h.index > last_dt - pd.Timedelta(days=92)]
     out.update(price=round(last, 2), date=last_dt.date().isoformat(), changes=changes,
                weekly=[[to_int(i), round(float(v), 2)] for i, v in weekly.items()],
