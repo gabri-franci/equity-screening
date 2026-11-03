@@ -48,7 +48,9 @@ def fake(ticker="TEST", sector="Technology", industry="Software - Infrastructure
             "trailingPE": 28.0, "forwardPE": 24.0, "trailingEps": -1.0 if neg_eps else 3.0, "forwardEps": 3.5,
             "enterpriseToEbitda": 18.0, "enterpriseToRevenue": 6.0, "ebitda": 520.0, "totalDebt": 300.0,
             "totalCash": 200.0, "beta": 1.2, "marketCap": 9000.0, "priceToBook": 3.0, "currentPrice": 100.0}
-    return YahooData(ticker, info, inc_a, bal_a, cf_a, inc_q, bal_q, cf_q, cf_ttm, hist)
+    news = [{"title": f"Notizia su {ticker}", "url": "https://example.com/n1", "source": "Test", "date": "2025-10-30T12:00",
+             "summary": "Riassunto"}]
+    return YahooData(ticker, info, inc_a, bal_a, cf_a, inc_q, bal_q, cf_q, cf_ttm, hist, news)
 
 
 MACRO = {"rf": Datum(v=4.0, docs=[]), "erp": Datum(v=5.0, docs=[])}
@@ -95,6 +97,44 @@ def test_fcf_and_price():
     assert q["changes"]["1G"] == round((last / (last - 0.04) - 1) * 100, 2)
     assert q["changes"]["1A"] > 0 and q["weekly"] and 55 <= len(q["daily"]) <= 70
     assert q["weekly"][-1][0] == 20251031
+
+
+def test_news_normalization():
+    from screener.sources.yahoo import fetch_news
+
+    class T:
+        def get_news(self, count=10):
+            return [{"content": {"title": "Nuovo formato", "pubDate": "2026-11-02T14:00:00Z",
+                                 "provider": {"displayName": "Reuters"}, "canonicalUrl": {"url": "https://x/1"}}},
+                    {"title": "Vecchio formato", "link": "https://x/2", "publisher": "AP", "providerPublishTime": 1762000000},
+                    {"content": {"title": "Senza link"}}]
+    n = fetch_news(T())
+    assert [x["title"] for x in n] == ["Nuovo formato", "Vecchio formato"]
+    assert n[0]["source"] == "Reuters" and n[1]["url"] == "https://x/2"
+
+
+def test_daily_refresh(tmp_path, monkeypatch):
+    import json
+    from screener import daily
+    monkeypatch.setattr(run, "LATEST_JSON", tmp_path / "latest.json")
+    monkeypatch.setattr(run, "DOCS_DIR", tmp_path)
+    (tmp_path / "latest.json").write_text(json.dumps({"generated": "x", "macro": {}, "finviz_elite": False,
+        "criteria": CFG["criteria"], "groups": CFG["groups"], "peer_medians": {},
+        "records": [{"ticker": "AAPL", "name": "A", "sector_it": "Tecnologia", "group_name": "Tech", "updated": "x",
+                     "memberships": [{"index": "S&P 500", "active": True, "first_seen": "x", "removed_on": ""}],
+                     "metrics": {}, "currency": "USD"}]}))
+    y = fake("AAPL")
+
+    class T:
+        def __init__(self, t): pass
+        def history(self, **k): return pd.DataFrame({"Close": y.hist})
+        def get_news(self, count=10): return [{"title": "N", "link": "https://x", "publisher": "P", "providerPublishTime": 1762000000}]
+    import yfinance
+    monkeypatch.setattr(yfinance, "Ticker", T)
+    daily.main()
+    d = json.loads((tmp_path / "latest.json").read_text())
+    assert d["records"][0]["quote"]["price"] and d["records"][0]["news"][0]["title"] == "N" and d["prices_updated"]
+    assert (tmp_path / "index.html").exists()
 
 
 def test_negative_values_no_judgment():
@@ -168,6 +208,8 @@ def test_full_run_offline(tmp_path, monkeypatch):
     assert list((tmp_path / "history").glob("*.csv.gz"))
     assert recs["AAPL"]["quote"]["price"] and recs["AAPL"]["metrics"]["fcf"]["v"] == 350
     assert "fcf" not in recs["JPM"]["metrics"]
+    assert recs["AAPL"]["news"][0]["title"] == "Notizia su AAPL"
+    assert data["repo"] and "watchlist" in data
 
     # settimana dopo: JPM esce dall'indice e Yahoo non risponde per O -> nulla viene eliminato
     sp2 = sp[sp.ticker != "JPM"]

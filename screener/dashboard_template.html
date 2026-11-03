@@ -27,7 +27,7 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 16px 0;position:sticky;top:0;z-index:5}
 .wrap{max-width:1400px;margin:0 auto}
 h1{font-size:20px;margin:0 0 4px}
 .meta{color:var(--muted);font-size:13px}
@@ -37,16 +37,34 @@ h1{font-size:20px;margin:0 0 4px}
 .tabs button.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:600}
 input[type=search]{flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit}
 label.chk{font-size:13px;color:var(--muted);display:flex;gap:4px;align-items:center}
-a.btn{background:var(--accent);color:#fff;text-decoration:none;padding:7px 12px;border-radius:6px;font-weight:600}
+a.btn,button.btn{background:var(--accent);color:#fff;text-decoration:none;padding:7px 12px;border-radius:6px;font-weight:600;border:0;font:inherit;font-weight:600;cursor:pointer}
 main{padding:16px}
 details.sector{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
 details.sector>summary{padding:10px 14px;cursor:pointer;font-weight:600;display:flex;justify-content:space-between}
 details.sector>summary .n{color:var(--muted);font-weight:400}
 .tbl{overflow-x:auto}
+#colwrap{overflow:hidden;margin-top:12px;border:1px solid transparent;border-bottom:0}
+#colwrap table th{border-top:0}
+.sector table tr:first-child td{border-top:0}
+.star{border:0;background:none;cursor:pointer;font-size:16px;line-height:1;padding:0 4px 0 0;color:var(--muted);vertical-align:-1px}
+.star.on{color:#d99a00}
+.btn2{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:6px 10px;border-radius:6px;font:inherit;cursor:pointer}
+dialog{border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);max-width:520px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit;margin:6px 0}
+dialog ol{padding-left:18px;font-size:13px}
+dialog a{color:var(--accent)}
+dialog .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:20;max-width:calc(100% - 32px)}
+.news{list-style:none;padding:0;margin:0}
+.news li{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.news a{color:var(--text);font-weight:600;text-decoration:none}
+.news a:hover{text-decoration:underline}
+.news .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.newsfoot a{color:var(--accent)}
 table{border-collapse:collapse;width:100%;min-width:1250px;font-size:13px;table-layout:fixed}
-th:first-child{width:190px}th:nth-child(2){width:180px}th:nth-child(3){width:90px}
 th,td{padding:6px 8px;border-top:1px solid var(--border);text-align:right;white-space:nowrap}
-th{color:var(--muted);font-weight:500;background:var(--surface-2);position:sticky;top:0}
+th{color:var(--muted);font-weight:500;background:var(--surface-2)}
 td.l,th.l{text-align:left}
 tr.row{cursor:pointer}
 tr.row:hover{background:var(--surface-2)}
@@ -68,7 +86,7 @@ th,td{vertical-align:top}
 #panel{position:fixed;top:0;right:0;height:100%;width:min(620px,100%);background:var(--surface);border-left:1px solid var(--border);
   box-shadow:-8px 0 24px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .2s;overflow-y:auto;z-index:10}
 #panel.open{transform:none}
-#panel .ph{position:sticky;top:0;background:var(--surface);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
+#panel .ph{position:sticky;top:0;z-index:2;background:var(--surface);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
 #panel .pb{padding:12px 16px 40px}
 #panel h2{margin:0;font-size:18px}
 #panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:18px 0 6px}
@@ -102,7 +120,7 @@ th,td{vertical-align:top}
 .chart .dot{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);white-space:nowrap;display:none}
 footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
-@media (max-width:640px){header,main{padding:12px 16px}.nm{display:none}input[type=search]{flex-basis:100%}table{min-width:820px}th:first-child{width:150px}}
+@media (max-width:640px){header{padding:12px 16px 0}main{padding:12px 16px}.nm{display:none}input[type=search]{flex-basis:100%}table{min-width:900px}}
 </style>
 </head>
 <body>
@@ -113,10 +131,27 @@ footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
     <div class="tabs" id="tabs"></div>
     <input type="search" id="q" placeholder="Cerca ticker o nome…">
     <label class="chk"><input type="checkbox" id="techai"> Solo Tech &amp; AI</label>
+    <label class="chk"><input type="checkbox" id="onlywl"> Solo watchlist ★ <span id="wlcount"></span></label>
     <label class="chk"><input type="checkbox" id="exited" checked> Mostra usciti dall'indice</label>
+    <button class="btn2" id="wlsetup" type="button">Collega watchlist</button>
     <a class="btn" href="screening.xlsx" download>Scarica Excel</a>
   </div>
+  <div id="colwrap"></div>
 </div></header>
+<dialog id="wldlg">
+  <h3 style="margin-top:0">Collega la watchlist</h3>
+  <p style="font-size:13px">La watchlist è salvata nel repository GitHub ed è la stessa su tutti i dispositivi. Per modificarla da questo dispositivo incolla la tua chiave personale GitHub. Si fa una volta per dispositivo e la chiave resta salvata solo in questo browser.</p>
+  <ol>
+    <li>Apri <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
+    <li>Nome a piacere, scadenza 1 anno; <b>Repository access</b>: "Only select repositories" → <b id="dlgrepo"></b></li>
+    <li><b>Permissions</b> → Repository permissions → <b>Contents: Read and write</b></li>
+    <li>Genera la chiave, copiala e incollala qui sotto</li>
+  </ol>
+  <input type="password" id="wltoken" placeholder="github_pat_…" autocomplete="off">
+  <div id="wlstatus" style="font-size:12px;color:var(--muted)"></div>
+  <div class="acts"><button class="btn2" id="wlforget" type="button">Scollega questo dispositivo</button><button class="btn2" id="wlcancel" type="button">Chiudi</button><button class="btn" id="wlsave" type="button">Salva</button></div>
+</dialog>
+<div id="toast" role="status"></div>
 <main><div class="wrap" id="list"></div></main>
 <aside id="panel" aria-hidden="true"><div class="ph"><div id="ph"></div><button class="x" id="close">Chiudi</button></div><div class="pb" id="pb"></div></aside>
 <footer>Dati: Yahoo Finance, SEC EDGAR, FRED, Damodaran<span id="fv"></span>. Strumento di analisi, non è una raccomandazione di investimento.</footer>
@@ -172,15 +207,20 @@ function render(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const onlyTech = document.getElementById('techai').checked;
   const showOut = document.getElementById('exited').checked;
+  const onlyWl = document.getElementById('onlywl').checked;
+  document.getElementById('wlcount').textContent = '('+WL.size+')';
   const recs = D.records.filter(r => {
     const m = membership(r); if(!m) return false;
     if(!m.active && !showOut) return false;
     if(onlyTech && !r.tech_ai) return false;
+    if(onlyWl && !WL.has(r.ticker)) return false;
     return !q || r.ticker.toLowerCase().includes(q) || (r.name||'').toLowerCase().includes(q);
   });
   const bySector = {};
   recs.forEach(r => (bySector[r.sector_it] = bySector[r.sector_it] || []).push(r));
-  const head = '<tr><th class="l">Ticker</th><th class="l nm">Nome</th><th>Prezzo</th>' + COLS.map(c => '<th>'+SHORT[c]+'</th>').join('') + '</tr>';
+  const cg = colgroup();
+  document.getElementById('colwrap').innerHTML = '<table>'+cg+'<tr><th class="l">Ticker</th><th class="l nm">Nome</th><th>Prezzo</th>' +
+    COLS.map(c => '<th>'+SHORT[c]+'</th>').join('') + '</tr></table>';
   let html = '';
   Object.keys(bySector).sort().forEach(s => {
     const rows = bySector[s].sort((a,b) => a.ticker.localeCompare(b.ticker)).map(r => {
@@ -190,22 +230,40 @@ function render(){
       if(other.length) tags += '<span class="tag">anche in '+esc(other.join(', '))+'</span>';
       if(!m.active) tags += '<span class="tag out">uscito il '+esc(m.removed_on)+'</span>';
       if(r.stale) tags += '<span class="tag stale">dati al '+esc(r.stale_since||r.updated)+'</span>';
-      return '<tr class="row" data-t="'+esc(r.ticker)+'"><td class="l tk">'+esc(r.ticker)+tags+'</td><td class="l nm">'+esc(r.name)+'</td>' + priceCell(r) +
+      return '<tr class="row" data-t="'+esc(r.ticker)+'"><td class="l tk">'+starBtn(r.ticker)+esc(r.ticker)+tags+'</td><td class="l nm">'+esc(r.name)+'</td>' + priceCell(r) +
         COLS.map(c => { const d = r.metrics[c]; return '<td>'+fmt(c,d)+(d?chip(d.label):'')+'</td>' }).join('') + '</tr>';
     }).join('');
-    html += '<details class="sector" open><summary>'+esc(s)+'<span class="n">'+bySector[s].length+' titoli</span></summary><div class="tbl"><table>'+head+rows+'</table></div></details>';
+    html += '<details class="sector" open><summary>'+esc(s)+'<span class="n">'+bySector[s].length+' titoli</span></summary><div class="tbl"><table>'+cg+rows+'</table></div></details>';
   });
   document.getElementById('list').innerHTML = html || '<p>Nessun titolo.</p>';
   document.querySelectorAll('tr.row').forEach(tr => tr.addEventListener("click", () => openPanel(tr.dataset.t)));
+  bindStars(document.getElementById('list'));
+  syncScroll();
+}
+function colgroup(){
+  const narrow = window.matchMedia('(max-width:640px)').matches;
+  return '<colgroup><col style="width:'+(narrow?150:200)+'px">'+(narrow?'<col style="width:0">':'<col style="width:180px">')+'<col style="width:90px">'+
+    COLS.map(() => '<col>').join('')+'</colgroup>';
+}
+let syncing = false;
+function syncScroll(){
+  const head = document.getElementById('colwrap');
+  const boxes = [...document.querySelectorAll('.tbl')];
+  boxes.forEach(b => b.onscroll = () => {
+    if(syncing) return; syncing = true;
+    const x = b.scrollLeft; head.scrollLeft = x; boxes.forEach(o => { if(o!==b) o.scrollLeft = x });
+    syncing = false;
+  });
+  head.scrollLeft = boxes.length ? boxes[0].scrollLeft : 0;
 }
 function openPanel(t){
   const r = D.records.find(x => x.ticker===t);
   const other = r.memberships.map(x => x.index + (x.active ? '' : ' (uscito il '+x.removed_on+')')).join(' · ');
-  document.getElementById('ph').innerHTML = '<h2>'+esc(r.ticker)+' — '+esc(r.name)+'</h2><div class="meta">'+
+  document.getElementById('ph').innerHTML = '<h2>'+starBtn(r.ticker)+esc(r.ticker)+' — '+esc(r.name)+'</h2><div class="meta">'+
     esc(r.sector_it)+' · '+esc(r.industry||'')+' · fasce: '+esc(r.group_name)+'<br>'+esc(other)+
     (r.secondary&&r.secondary.length?' · altre classi: '+esc(r.secondary.join(', ')):'')+
     '<br>Settore da: '+esc(r.sector_src)+' · aggiornato '+esc(r.updated)+(r.stale?' (dati non aggiornati)':'')+'</div>';
-  let html = quoteHtml(r);
+  let html = quoteHtml(r) + newsHtml(r);
   AREAS.forEach(a => {
     const ms = Object.keys(C).filter(m => C[m].area===a && r.metrics[m]);
     if(!ms.length) return;
@@ -235,6 +293,7 @@ function openPanel(t){
   });
   document.getElementById('pb').innerHTML = html;
   drawChart(r, '1A');
+  bindStars(document.getElementById('ph'));
   const p = document.getElementById('panel'); p.classList.add('open'); p.setAttribute('aria-hidden','false');
 }
 const RANGES = [['1M',30,'daily'],['3M',91,'daily'],['6M',182,'weekly'],['YTD','ytd','weekly'],['1A',365,'weekly'],['3A',1095,'weekly'],['5A',1826,'weekly']];
@@ -303,13 +362,110 @@ function drawChart(r, range){
   hit.addEventListener('mousemove', move); hit.addEventListener('touchmove', move, {passive:true});
   hit.addEventListener('mouseleave', out); hit.addEventListener('touchend', out);
 }
+function newsHtml(r){
+  const n = r.news||[], tk = encodeURIComponent(r.ticker);
+  let h = '<h3>Ultime notizie</h3>';
+  if(!n.length) h += '<div class="sub" style="color:var(--muted);font-size:12px">Nessuna notizia disponibile.</div>';
+  else h += '<ul class="news">'+n.slice(0,8).map(x => '<li><a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.title)+'</a>'+
+    '<div class="sub">'+esc(x.source)+(x.date?' · '+esc(fmtNewsDate(x.date)):'')+'</div>'+(x.summary?'<div class="sub">'+esc(x.summary)+'</div>':'')+'</li>').join('')+'</ul>';
+  h += '<div class="newsfoot" style="color:var(--muted);font-size:12px">Notizie da Yahoo Finance aggiornate al '+esc(r.news_updated||r.updated)+' · altre notizie: '+
+    '<a href="https://finance.yahoo.com/quote/'+tk+'/news" target="_blank" rel="noopener">Yahoo</a> · '+
+    '<a href="https://finviz.com/quote.ashx?t='+tk+'" target="_blank" rel="noopener">Finviz</a></div>';
+  return h;
+}
+function fmtNewsDate(s){
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s+'Z');
+  if(isNaN(d)) return s;
+  return d.toLocaleString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+/* ---------- watchlist condivisa: file watchlist/watchlist.json nel repository GitHub ---------- */
+const REPO = D.repo || 'gabri-franci/equity-screening';
+const WL_PATH = 'watchlist/watchlist.json';
+const WL = new Set(D.watchlist||[]);
+const TOKEN_KEY = 'wl_token';
+let token = ''; try{ token = localStorage.getItem(TOKEN_KEY) || '' }catch(e){}
+function starBtn(t){ const on = WL.has(t); const lbl = (on?'Togli dalla':'Aggiungi alla')+' watchlist';
+  return '<button class="star'+(on?' on':'')+'" data-star="'+esc(t)+'" title="'+lbl+'" aria-label="'+lbl+'" aria-pressed="'+on+'">'+(on?'★':'☆')+'</button>' }
+function bindStars(root){ root.querySelectorAll('[data-star]').forEach(b => b.onclick = ev => { ev.stopPropagation(); toggleStar(b.dataset.star) }) }
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3500) }
+function refreshStars(){
+  document.querySelectorAll('[data-star]').forEach(b => { const on = WL.has(b.dataset.star); b.classList.toggle('on', on); b.textContent = on?'★':'☆'; b.setAttribute('aria-pressed', on) });
+  document.getElementById('wlcount').textContent = '('+WL.size+')';
+}
+const b64e = s => { const u = new TextEncoder().encode(s); let b = ''; u.forEach(c => b += String.fromCharCode(c)); return btoa(b) };
+const b64d = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')), c => c.charCodeAt(0)));
+async function ghGet(){
+  const h = {'Accept':'application/vnd.github+json'}; if(token) h.Authorization = 'Bearer '+token;
+  const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+WL_PATH+'?ref=main&t='+Date.now(), {headers:h, cache:'no-store'});
+  if(!r.ok) throw new Error('errore '+r.status);
+  const j = await r.json();
+  return {sha: j.sha, data: JSON.parse(b64d(j.content))};
+}
+async function loadWatchlist(){
+  try{
+    const {data} = await ghGet();
+    WL.clear(); (data.tickers||[]).forEach(t => WL.add(t)); refreshStars();
+    if(document.getElementById('onlywl').checked) render();
+  }catch(e){ /* resta la watchlist salvata insieme alla pagina */ }
+}
+let saving = Promise.resolve();
+function toggleStar(t){
+  if(!token){ openDlg('Per modificare la watchlist collega prima questo dispositivo.'); return }
+  const add = !WL.has(t);
+  add ? WL.add(t) : WL.delete(t); refreshStars();
+  saving = saving.then(() => saveStar(t, add)).catch(() => {});
+}
+async function saveStar(t, add, attempt=0){
+  try{
+    const {sha, data} = await ghGet();
+    const set = new Set(data.tickers||[]); add ? set.add(t) : set.delete(t);
+    const body = {message: 'Watchlist: '+(add?'aggiunto ':'tolto ')+t, branch: 'main', sha,
+      content: b64e(JSON.stringify({tickers:[...set].sort(), updated:new Date().toISOString()}, null, 2)+'\n')};
+    const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+WL_PATH, {method:'PUT',
+      headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if((r.status===409 || r.status===422) && attempt<2) return saveStar(t, add, attempt+1);
+    if(r.status===401 || r.status===403 || r.status===404) throw new Error('chiave non valida o senza permesso di scrittura');
+    if(!r.ok) throw new Error('errore '+r.status);
+    WL.clear(); set.forEach(x => WL.add(x)); refreshStars();
+    toast((add?'Aggiunto ':'Tolto ')+t+(add?' alla':' dalla')+' watchlist');
+  }catch(e){
+    add ? WL.delete(t) : WL.add(t); refreshStars();
+    toast('Watchlist non salvata: '+e.message);
+  }
+}
+const dlg = document.getElementById('wldlg');
+function openDlg(msg){
+  document.getElementById('dlgrepo').textContent = REPO.split('/')[1];
+  document.getElementById('wlstatus').textContent = msg || (token ? 'Questo dispositivo è collegato.' : 'Questo dispositivo non è collegato: la watchlist è visibile ma non modificabile.');
+  document.getElementById('wltoken').value = '';
+  dlg.showModal();
+}
+document.getElementById('wlsetup').onclick = () => openDlg();
+document.getElementById('wlcancel').onclick = () => dlg.close();
+document.getElementById('wlforget').onclick = () => { token = ''; try{ localStorage.removeItem(TOKEN_KEY) }catch(e){} updSetup(); dlg.close(); toast('Dispositivo scollegato') };
+document.getElementById('wlsave').onclick = async () => {
+  const v = document.getElementById('wltoken').value.trim(); if(!v) return;
+  const st = document.getElementById('wlstatus'); st.textContent = 'Verifica in corso…';
+  try{
+    const r = await fetch('https://api.github.com/repos/'+REPO, {headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+v}});
+    const j = r.ok ? await r.json() : null;
+    if(!j || !(j.permissions && j.permissions.push)) throw new Error();
+    token = v; try{ localStorage.setItem(TOKEN_KEY, v) }catch(e){}
+    updSetup(); dlg.close(); toast('Dispositivo collegato: ora puoi usare le stelline'); loadWatchlist();
+  }catch(e){ st.textContent = 'Chiave non valida o senza il permesso "Contents: Read and write" su questo repository.' }
+};
+function updSetup(){ document.getElementById('wlsetup').textContent = token ? 'Watchlist collegata ✓' : 'Collega watchlist' }
+updSetup();
+document.getElementById('onlywl').addEventListener('input', render);
+window.addEventListener('resize', () => { clearTimeout(window.rz); window.rz = setTimeout(render, 200) });
+loadWatchlist();
 document.getElementById('close').onclick = () => { const p = document.getElementById('panel'); p.classList.remove('open'); p.setAttribute('aria-hidden','true') };
 document.addEventListener('keydown', e => { if(e.key==='Escape') document.getElementById('close').click() });
 document.getElementById('tabs').innerHTML = MARKETS.map(m => '<button data-m="'+m+'">'+m+'</button>').join('');
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { market = b.dataset.m; try{localStorage.setItem('mkt',market)}catch(e){} render() });
 ['q','techai','exited'].forEach(id => document.getElementById(id).addEventListener('input', render));
 const rf = D.macro.rf||{}, erp = D.macro.erp||{};
-document.getElementById('meta').textContent = 'Aggiornato: '+D.generated.replace('T',' ')+' UTC · Treasury 10Y '+(rf.v??'n.d.')+'% · ERP '+(erp.v??'n.d.')+'% · '+D.records.length+' aziende';
+document.getElementById('meta').textContent = 'Aggiornato: '+D.generated.replace('T',' ')+' UTC'+(D.prices_updated?' · prezzi e notizie '+D.prices_updated.replace('T',' ')+' UTC':'')+' · Treasury 10Y '+(rf.v??'n.d.')+'% · ERP '+(erp.v??'n.d.')+'% · '+D.records.length+' aziende';
 document.getElementById('fv').textContent = D.finviz_elite ? ', Finviz Elite' : '';
 render();
 </script>

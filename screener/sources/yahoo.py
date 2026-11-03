@@ -23,6 +23,7 @@ class YahooData:
     cf_q: pd.DataFrame = field(default_factory=pd.DataFrame)
     cf_ttm: pd.DataFrame = field(default_factory=pd.DataFrame)  # rendiconto finanziario ultimi 12 mesi
     hist: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))  # prezzi di chiusura giornalieri, 5 anni
+    news: list = field(default_factory=list)  # ultime notizie [{title, url, source, date, summary}]
 
     def url(self, page: str = "") -> str:
         return f"https://finance.yahoo.com/quote/{self.ticker}/{page}".rstrip("/")
@@ -54,6 +55,7 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
                     d.hist = c
             except Exception as e:
                 log.debug("%s history: %s", ticker, e)
+            d.news = fetch_news(t)
             if not d.info or d.info.get("quoteType") is None and d.inc_a.empty:
                 raise RuntimeError("risposta vuota")
             return d
@@ -61,6 +63,30 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
             last = e
             time.sleep(2 ** (i + 1))
     raise RuntimeError(f"Yahoo {ticker}: {last}")
+
+
+def fetch_news(t, count: int = 10) -> list[dict]:
+    """Ultime notizie Yahoo Finance, normalizzate (gestisce sia il formato vecchio sia quello nuovo di yfinance)."""
+    try:
+        raw = t.get_news(count=count) or []
+    except Exception as e:
+        log.debug("news: %s", e)
+        return []
+    out = []
+    for n in raw:
+        c = n.get("content") or n
+        title = c.get("title")
+        url = ((c.get("canonicalUrl") or {}).get("url") or (c.get("clickThroughUrl") or {}).get("url")
+               or c.get("link") or "")
+        src = (c.get("provider") or {}).get("displayName") or c.get("publisher") or ""
+        date = c.get("pubDate") or c.get("displayTime") or ""
+        if not date and c.get("providerPublishTime"):
+            date = pd.Timestamp(int(c["providerPublishTime"]), unit="s").isoformat()
+        if title and url:
+            out.append({"title": title, "url": url, "source": src, "date": str(date)[:16],
+                        "summary": (c.get("summary") or "")[:280]})
+    out.sort(key=lambda x: x["date"], reverse=True)
+    return out
 
 
 # ----------------------------------------------------------------- helpers

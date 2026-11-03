@@ -1,0 +1,40 @@
+name: Prezzi e notizie giornalieri
+
+on:
+  schedule:
+    - cron: "37 6 * * 1-5"    # lun-ven alle 06:37 UTC, dopo la chiusura della borsa USA
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-screening     # stessa coda dell'aggiornamento settimanale: mai due giri insieme
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m screener.daily
+      - name: Salva i risultati nel repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4; do
+            git fetch origin main
+            git reset --mixed origin/main
+            git add docs
+            git diff --cached --quiet && exit 0
+            git commit -m "Prezzi e notizie $(date -u +%Y-%m-%d)"
+            git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          exit 1

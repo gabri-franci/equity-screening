@@ -10,13 +10,14 @@ import argparse
 import gzip
 import json
 import logging
+import os
 import time
 from datetime import date, datetime, timezone
 
 import pandas as pd
 
 from . import constituents, scoring
-from .config import DATA_DIR, DOCS_DIR, load_config
+from .config import DATA_DIR, DOCS_DIR, ROOT, load_config
 from .metrics import SECTOR_IT, Engine, group_for, norm_sector, price_block
 from .model import Datum
 from .sources import finviz, macro, sec
@@ -24,6 +25,8 @@ from .sources import yahoo as yh
 
 log = logging.getLogger("screener")
 LATEST_JSON = DOCS_DIR / "data" / "latest.json"
+WATCHLIST_JSON = ROOT / "watchlist" / "watchlist.json"
+REPO = os.environ.get("GITHUB_REPOSITORY") or "gabri-franci/equity-screening"
 HISTORY_DIR = DATA_DIR / "history"
 
 
@@ -97,6 +100,7 @@ def evaluate(u: dict, fv_all: dict, macro_d: dict, cfg: dict, prev: dict, today:
         "tech_ai": group == "tech_ai", "cik": sec.cik_str(t),
         "price": info.get("currentPrice") or info.get("regularMarketPrice"), "currency": info.get("currency", "USD"),
         "quote": price_block(y),
+        "news": y.news, "news_updated": today,
         "market_cap": info.get("marketCap"),
         "memberships": list(u["memberships"].values()), "secondary": sorted(u["secondary"]),
         "updated": today, "stale": False,
@@ -130,6 +134,24 @@ def save_history(records: list[dict], today: str) -> None:
                          "stale": r.get("stale", False)})
     with gzip.open(HISTORY_DIR / f"{today}.csv.gz", "wt", encoding="utf-8") as f:
         pd.DataFrame(rows).to_csv(f, index=False)
+
+
+def load_watchlist() -> list[str]:
+    try:
+        return sorted(set(json.loads(WATCHLIST_JSON.read_text("utf-8")).get("tickers", [])))
+    except Exception:
+        return []
+
+
+def write_outputs(out: dict) -> None:
+    """Scrive latest.json, Excel e dashboard (usato sia dal giro settimanale sia da quello giornaliero)."""
+    out["watchlist"] = load_watchlist()
+    out["repo"] = REPO
+    LATEST_JSON.parent.mkdir(parents=True, exist_ok=True)
+    LATEST_JSON.write_text(json.dumps(out, ensure_ascii=False, default=str), "utf-8")
+    from . import dashboard, excel
+    excel.write(out, DOCS_DIR / "screening.xlsx")
+    dashboard.write(out, DOCS_DIR / "index.html")
 
 
 def main(argv=None) -> None:
@@ -180,13 +202,8 @@ def main(argv=None) -> None:
         "criteria": cfg["criteria"], "groups": cfg["groups"], "peer_medians": meds,
         "records": sorted(records, key=lambda r: r["ticker"]),
     }
-    LATEST_JSON.parent.mkdir(parents=True, exist_ok=True)
-    LATEST_JSON.write_text(json.dumps(out, ensure_ascii=False, default=str), "utf-8")
     save_history(records, today)
-
-    from . import dashboard, excel
-    excel.write(out, DOCS_DIR / "screening.xlsx")
-    dashboard.write(out, DOCS_DIR / "index.html")
+    write_outputs(out)
     ok = sum(1 for r in records if not r.get("stale"))
     log.info("Completato: %d titoli aggiornati, %d con dati precedenti", ok, len(records) - ok)
 

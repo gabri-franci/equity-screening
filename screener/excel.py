@@ -29,7 +29,7 @@ def _header(ws, cols):
     for c in ws[1]:
         c.font, c.fill = HEAD, HEAD_FILL
         c.alignment = Alignment(wrap_text=True, vertical="center")
-    ws.freeze_panes = "D2"
+    ws.freeze_panes = "E2"
 
 
 def write(data: dict, path) -> None:
@@ -39,14 +39,15 @@ def write(data: dict, path) -> None:
     wb.remove(wb.active)
     for market in MARKETS:
         ws = wb.create_sheet(market)
-        cols = ["Settore", "Ticker", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato",
+        wl = set(data.get("watchlist", []))
+        cols = ["Settore", "Ticker", "Watchlist", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato",
                 "Prezzo", "Valuta", "Data prezzo"] + [f"Var. {p} %" for p in PRICE_CHG]
         for m in metrics:
             cols += [crit[m]["name"], "Giudizio"]
         _header(ws, cols)
         recs = [r for r in data["records"] if any(x["index"] == market for x in r["memberships"])]
         for r in sorted(recs, key=lambda r: (r["sector_it"], r["ticker"])):
-            row = [r["sector_it"], r["ticker"], r["name"], r["group_name"], _status(r, market), _other(r, market),
+            row = [r["sector_it"], r["ticker"], "★" if r["ticker"] in wl else "", r["name"], r["group_name"], _status(r, market), _other(r, market),
                    ", ".join(r.get("secondary", [])),
                    r["updated"] + (" (dati non aggiornati)" if r.get("stale") else "")]
             q = r.get("quote") or {}
@@ -68,7 +69,8 @@ def write(data: dict, path) -> None:
                     cell.fill = PatternFill("solid", fgColor=FILL[cell.value])
         for i in range(1, len(cols) + 1):
             ws.column_dimensions[get_column_letter(i)].width = 14
-        ws.column_dimensions["C"].width = 28
+        ws.column_dimensions["C"].width = 10
+        ws.column_dimensions["D"].width = 28
         ws.auto_filter.ref = ws.dimensions
 
     ws = wb.create_sheet("Dati dedotti")
