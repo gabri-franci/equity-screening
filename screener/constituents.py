@@ -19,9 +19,7 @@ log = logging.getLogger(__name__)
 MEMBERSHIP_CSV = DATA_DIR / "membership.csv"
 INDEXES = {
     "S&P 500": ["https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"],
-    "NASDAQ 100": ["https://en.wikipedia.org/wiki/Nasdaq-100",
-                   "https://en.wikipedia.org/wiki/List_of_Nasdaq-100_companies",
-                   "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"],
+    "NASDAQ 100": ["https://en.wikipedia.org/wiki/Nasdaq-100"],
 }
 NASDAQ_API = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
 COLUMNS = ["ticker", "index", "name", "gics_sector", "first_seen", "last_seen", "active", "removed_on"]
