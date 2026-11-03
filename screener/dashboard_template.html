@@ -283,8 +283,9 @@ function drawChart(r, range){
   box.innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Storico prezzo '+esc(r.ticker)+' '+range+'">'+g+
     '<path class="line" d="'+d+'"/><line class="hair" id="hair" y1="'+T+'" y2="'+(H-B)+'" style="display:none"/>'+
     '<circle class="dot" id="hdot" r="4" style="display:none"/><rect x="'+L+'" y="0" width="'+(W-L-R)+'" height="'+H+'" fill="transparent" id="hit"/></svg><div class="tip" id="tip"></div>';
-  const chg = (pts[pts.length-1][1]/pts[0][1]-1)*100;
-  document.getElementById('chartcap').innerHTML = 'Variazione nel periodo '+range+': '+pctChg(chg)+' · '+(kind==='daily'?'chiusure giornaliere':'chiusure settimanali');
+  const exact = (q.changes||{})[range];
+  const chg = (exact!==null && exact!==undefined) ? exact : (pts[pts.length-1][1]/pts[0][1]-1)*100;
+  document.getElementById('chartcap').innerHTML = 'Variazione nel periodo '+range+': '+pctChg(chg)+' (su chiusure giornaliere) · grafico su '+(kind==='daily'?'chiusure giornaliere':'chiusure settimanali');
   const svg = box.querySelector('svg'), hit = document.getElementById('hit'), tip = document.getElementById('tip');
   const hair = document.getElementById('hair'), dot = document.getElementById('hdot');
   const move = ev => {
