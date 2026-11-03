@@ -17,6 +17,9 @@ def main() -> None:
     for r in d["records"]:
         print(f"\n=== {r['ticker']} | {r['name']} | {r['sector']} / {r['industry']} | gruppo {r['group']} | "
               f"indici {[m['index'] for m in r['memberships']]} | stale={r.get('stale')}")
+        q = r.get("quote") or {}
+        print(f"  prezzo {q.get('price')} {q.get('currency', '')} al {q.get('date')} | var {q.get('changes')} | "
+              f"settimanali {len(q.get('weekly') or [])} giornalieri {len(q.get('daily') or [])}")
         for m, x in r["metrics"].items():
             v = x.get("v")
             if v is None:
