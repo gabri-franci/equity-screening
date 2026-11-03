@@ -18,20 +18,8 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python -m pytest -q tests
-      - name: Diagnostica notizie
-        run: |
-          python - <<'PY'
-          import yfinance as yf, json
-          print("yfinance", yf.__version__)
-          t = yf.Ticker("AAPL")
-          for name, fn in (("get_news", lambda: t.get_news(count=5)), ("news", lambda: t.news), ("Search", lambda: yf.Search("AAPL", news_count=5).news)):
-              try:
-                  r = fn()
-                  print(name, type(r).__name__, len(r) if r is not None else None)
-                  print(json.dumps(r[:1] if r else r, default=str)[:1500])
-              except Exception as e:
-                  print(name, "ERRORE", repr(e)[:500])
-          PY
+      - name: Prova notizie
+        run: python -c "import yfinance as yf; from screener.sources.yahoo import fetch_news; n=fetch_news(yf.Ticker('AAPL')); print(len(n), n[:2])"
       - name: Screening su un campione
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}

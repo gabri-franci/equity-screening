@@ -99,7 +99,7 @@ def test_fcf_and_price():
     assert q["weekly"][-1][0] == 20251031
 
 
-def test_news_normalization():
+def test_news_normalization(monkeypatch):
     from screener.sources.yahoo import fetch_news
 
     class T:
@@ -110,6 +110,15 @@ def test_news_normalization():
                     {"content": {"title": "Senza link"}}]
     n = fetch_news(T())
     assert [x["title"] for x in n] == ["Nuovo formato", "Vecchio formato"]
+
+    class S:  # ricerca Yahoo: tiene solo le notizie collegate al titolo
+        def __init__(self, *a, **k):
+            self.news = [{"title": "Altro titolo", "link": "https://x/3", "relatedTickers": ["MSFT"], "providerPublishTime": 1762000000},
+                         {"title": "Su Apple", "link": "https://x/4", "relatedTickers": ["AAPL"], "providerPublishTime": 1762000000}]
+    import yfinance
+    monkeypatch.setattr(yfinance, "Search", S)
+    T.ticker = "AAPL"
+    assert [x["title"] for x in fetch_news(T())] == ["Su Apple"]
     assert n[0]["source"] == "Reuters" and n[1]["url"] == "https://x/2"
 
 
@@ -131,6 +140,7 @@ def test_daily_refresh(tmp_path, monkeypatch):
         def get_news(self, count=10): return [{"title": "N", "link": "https://x", "publisher": "P", "providerPublishTime": 1762000000}]
     import yfinance
     monkeypatch.setattr(yfinance, "Ticker", T)
+    monkeypatch.setattr(yfinance, "Search", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("offline")))
     daily.main()
     d = json.loads((tmp_path / "latest.json").read_text())
     assert d["records"][0]["quote"]["price"] and d["records"][0]["news"][0]["title"] == "N" and d["prices_updated"]

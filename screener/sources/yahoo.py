@@ -66,12 +66,27 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
 
 
 def fetch_news(t, count: int = 10) -> list[dict]:
-    """Ultime notizie Yahoo Finance, normalizzate (gestisce sia il formato vecchio sia quello nuovo di yfinance)."""
-    try:
-        raw = t.get_news(count=count) or []
-    except Exception as e:
-        log.debug("news: %s", e)
-        return []
+    """Ultime notizie Yahoo Finance, normalizzate (gestisce sia il formato vecchio sia quello nuovo di yfinance).
+
+    Prima prova la ricerca Yahoo (yf.Search), che resta attiva quando il canale notizie del
+    singolo titolo non risponde; poi il canale del titolo (get_news).
+    """
+    raw = []
+    sym = getattr(t, "ticker", None)
+    if isinstance(sym, str) and sym:
+        try:
+            import yfinance as yf
+            found = yf.Search(sym, max_results=1, news_count=count).news or []
+            related = [n for n in found if sym.upper() in [x.upper() for x in (n.get("relatedTickers") or [])]]
+            raw = related or found
+        except Exception as e:
+            log.debug("news search %s: %s", sym, e)
+    if not raw:
+        try:
+            raw = t.get_news(count=count) or []
+        except Exception as e:
+            log.debug("news: %s", e)
+            return []
     out = []
     for n in raw:
         c = n.get("content") or n
