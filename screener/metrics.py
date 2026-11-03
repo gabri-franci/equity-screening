@@ -588,10 +588,12 @@ def price_block(y: YahooData) -> dict:
             ref = prev.iloc[-1] if len(prev) else None
         else:
             prev = h[h.index <= last_dt - pd.Timedelta(days=days)]
+            if label == "5A" and len(prev) and (last_dt - prev.index[-1]).days > days + 10:
+                prev = prev.iloc[0:0]  # punto di partenza troppo vecchio: meglio n.d. che un valore sbagliato
             ref = prev.iloc[-1] if len(prev) else None
         changes[label] = round((last / float(ref) - 1) * 100, 2) if ref else None
     to_int = lambda ts: int(ts.strftime("%Y%m%d"))
-    weekly = h.resample("W-FRI").last().dropna()
+    weekly = h[h.index > last_dt - pd.DateOffset(years=5)].resample("W-FRI").last().dropna()
     daily = h[h.index > last_dt - pd.Timedelta(days=92)]
     out.update(price=round(last, 2), date=last_dt.date().isoformat(), changes=changes,
                weekly=[[to_int(i), round(float(v), 2)] for i, v in weekly.items()],
