@@ -1,0 +1,385 @@
+# =====================================================================
+# CRITERI DI SCREENING — tradotti dal documento "Equity_Screening_v1.docx"
+# =====================================================================
+# Ogni soglia qui sotto è presa dal documento dell'utente, salvo dove è
+# indicato "origine: proposta" (fasce di settore mancanti, proposte e
+# confermate in chat). Le percentuali sono espresse in punti (15 = 15%).
+#
+# Formato di una regola:
+#   levels: lista valutata dall'alto verso il basso; vince la prima che
+#           corrisponde. Operatori: gt (>), gte (>=), lt (<), lte (<=).
+#   Se nessun livello corrisponde il giudizio resta vuoto ("—").
+#   Valori negativi / non calcolabili: nessun giudizio (regola utente).
+# =====================================================================
+
+criteria:
+
+  # ---------------------------- REDDITIVITA' ----------------------------
+  roic:
+    name: ROIC (TTM)
+    area: Redditività
+    unit: pct
+    help: Return On Invested Capital — profitto operativo netto per capitale investito
+    levels:
+      - {label: Molto buono, gt: 20}
+      - {label: Buono, gt: 10}
+
+  roic_vs_wacc:
+    name: ROIC > WACC
+    area: Redditività
+    unit: bool
+    help: "Condizione 1 del documento: il ROIC deve superare il costo del capitale"
+
+  wacc:
+    name: WACC
+    area: Redditività
+    unit: pct
+    help: Costo medio ponderato del capitale (sempre calcolato, vedi box)
+
+  roe:
+    name: ROE (TTM)
+    area: Redditività
+    unit: pct
+    help: Utile per € investito dagli azionisti
+    levels:
+      - {label: Molto buono, gt: 25}
+      - {label: Buono, gt: 15}
+
+  op_margin:
+    name: Operating Margin (TTM)
+    area: Redditività
+    unit: pct
+    help: EBIT / Ricavi
+    levels:
+      - {label: Molto buono, gt: 25}
+      - {label: Buono, gt: 15}
+
+  fcf_margin:
+    name: FCF Margin (TTM)
+    area: Redditività
+    unit: pct
+    help: (Flusso di cassa operativo − Capex) / Ricavi
+    levels:
+      - {label: Molto buono, gt: 15}
+      - {label: Buono, gt: 8}
+
+  # ------------------------------ CRESCITA ------------------------------
+  rev_cagr3:
+    name: Revenue CAGR 3Y
+    area: Crescita
+    unit: pct
+    help: Crescita annua composta dei ricavi, ultimi 3 esercizi
+    levels:
+      - {label: Molto buono, gt: 10}
+      - {label: Buono, gt: 5}
+
+  eps_cagr3:
+    name: EPS CAGR 3Y
+    area: Crescita
+    unit: pct
+    help: Crescita annua composta dell'utile per azione diluito, ultimi 3 esercizi
+    # Il documento riporta: "> 5% Buono" e "< 10% Molto Buono".
+    # Applicato alla lettera: tra 5% e 10% Molto buono, da 10% in su Buono.
+    levels:
+      - {label: Molto buono, gt: 5, lt: 10}
+      - {label: Buono, gte: 10}
+
+  fcf_cagr3:
+    name: FCF CAGR 3Y
+    area: Crescita
+    unit: pct
+    help: Crescita annua composta del Free Cash Flow, ultimi 3 esercizi
+    levels:
+      - {label: Molto buono, gt: 10}
+      - {label: Buono, gt: 4}
+
+  roic_3y:
+    name: ROIC ultimi 3Y
+    area: Crescita
+    unit: pct
+    help: ROIC degli ultimi 3 esercizi — sopra 10% e stabile / in crescita
+    trend:
+      min_each_year: 10        # tutti e 3 gli anni sopra il 10%
+      growth_pp: 1.0           # "in crescita": ultimo anno >= primo anno + 1 punto
+      stable_band_pp: 3.0      # "stabile": max − min entro 3 punti
+      label_growing: Molto buono
+      label_stable: Buono
+
+  # ------------------------ SOLIDITA' FINANZIARIA ------------------------
+  nd_ebitda:
+    name: Net Debt / EBITDA
+    area: Solidità
+    unit: x
+    help: Posizione finanziaria netta / EBITDA (TTM). Negativo = cassa netta (nessun giudizio)
+    levels:
+      - {label: Molto bene, gte: 0, lt: 1}
+      - {label: Bene, gt: 1, lt: 2.5}
+
+  de:
+    name: Debt / Equity
+    area: Solidità
+    unit: x
+    help: Debito totale / Patrimonio netto
+    levels:
+      - {label: Molto bene, gte: 0, lt: 1}
+      - {label: Bene, gt: 1, lt: 1.5}
+
+  current_ratio:
+    name: Current Ratio
+    area: Solidità
+    unit: x
+    help: Attività correnti / Passività correnti
+    levels:
+      - {label: Bene, gt: 1, lt: 2.5}
+
+  # ----------------------------- VALUTAZIONE -----------------------------
+  pe_ttm:
+    name: P/E Trailing
+    area: Valutazione
+    unit: x
+    band: pe          # fascia di settore (vedi sotto)
+
+  pe_fwd:
+    name: P/E Forward
+    area: Valutazione
+    unit: x
+
+  fwd_lt_ttm:
+    name: Forward P/E < Trailing P/E
+    area: Valutazione
+    unit: bool
+    help: "Regola sempre valida secondo il documento"
+
+  ev_ebitda:
+    name: EV / EBITDA
+    area: Valutazione
+    unit: x
+    band: ev_ebitda
+
+  ev_sales:
+    name: EV / Sales
+    area: Valutazione
+    unit: x
+
+  ebit_yield_rule:
+    name: EBIT Margin ÷ EV/Sales
+    area: Valutazione
+    unit: pct
+    help: "Es. documento: EV/Sales 3x ⇒ EBIT Margin minimo 21% ⇒ 7% per ogni 1x di EV/Sales"
+    levels:
+      - {label: Buono, gte: 7}
+    only_groups: [industrials]   # documento: 7% valido per gli industriali; altri settori da back testing
+
+  # ------------------- METRICHE ALTERNATIVE (FINANZIARI / REIT) -------------------
+  rote:
+    name: ROTE (TTM)
+    area: Redditività
+    unit: pct
+    help: Utile netto / Patrimonio netto tangibile
+    origin: proposta
+    levels:
+      - {label: Buono, gt: 12}
+
+  ptbv:
+    name: P / Tangible Book
+    area: Valutazione
+    unit: x
+    band: ptbv
+
+  cet1:
+    name: CET1 Ratio
+    area: Solidità
+    unit: pct
+    origin: proposta
+    levels:
+      - {label: Buono, gt: 11}
+
+  pb:
+    name: P / Book
+    area: Valutazione
+    unit: x
+    band: pb
+
+  combined_ratio:
+    name: Combined Ratio
+    area: Redditività
+    unit: pct
+    origin: proposta
+    levels:
+      - {label: Buono, lt: 100}
+
+  p_ffo:
+    name: P / FFO
+    area: Valutazione
+    unit: x
+    band: p_ffo
+
+
+# ------------------------------------------------------------------------
+# Metriche da NON calcolare per gruppo (non hanno senso per quel business)
+# ------------------------------------------------------------------------
+skip_by_group:
+  bank:      [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf_margin, fcf_cagr3, op_margin, pb, combined_ratio, p_ffo]
+  insurance: [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf_margin, fcf_cagr3, ptbv, rote, cet1, p_ffo]
+  reit:      [pe_ttm, pe_fwd, fwd_lt_ttm, rote, ptbv, cet1, pb, combined_ratio]
+  default:   [rote, ptbv, cet1, pb, combined_ratio, p_ffo]
+
+
+# ------------------------------------------------------------------------
+# GRUPPI DI SETTORE e FASCE DI VALUTAZIONE
+# ------------------------------------------------------------------------
+# La struttura della dashboard usa il settore (classificazione Finviz/Yahoo).
+# Le fasce di valutazione usano il "gruppo", più fine del settore.
+# ------------------------------------------------------------------------
+tech_ai_extra: [GOOGL, GOOG, META, AMZN, NFLX, TSLA, UBER]
+
+groups:
+  tech_ai:
+    name: Tech & AI
+    pe: {min: 20, max: 50, origin: documento}
+    ev_ebitda: {min: 15, max: 30, origin: documento}
+  consumer_cyclical:
+    name: Consumer Discretionary
+    pe: {min: 15, max: 30, origin: documento}
+    ev_ebitda: {min: 10, max: 20, origin: documento}
+  consumer_defensive:
+    name: Consumer Staples
+    pe: {min: 15, max: 22, origin: documento}
+    ev_ebitda: {min: 10, max: 15, origin: documento}
+  utilities:
+    name: Utilities
+    pe: {min: 10, max: 15, origin: documento}
+    ev_ebitda: {min: 7, max: 12, origin: documento}
+  bank:
+    name: Banche e Capital Markets
+    pe: {min: 8, max: 20, origin: documento}
+    ptbv:
+      min: 1
+      max: 2
+      origin: proposta
+      why: "Una banca con ROTE vicino al costo del capitale (~10-11%) vale circa 1x il patrimonio tangibile; 2x è giustificato solo da ROTE stabilmente sopra il 15-20%."
+  insurance:
+    name: Assicurazioni
+    pe: {min: 8, max: 20, origin: documento}
+    pb:
+      min: 1
+      max: 2.5
+      origin: proposta
+      why: "Le assicurazioni con ROE 10-15% trattano storicamente tra 1x e 2x il book; le migliori (ROE >20%) fino a 2,5x."
+  financial_other:
+    name: Finanziari non bancari (pagamenti, borse, gestori)
+    pe: {min: 8, max: 20, origin: documento}
+  pharma:
+    name: Farma e Biotech
+    pe:
+      min: 12
+      max: 22
+      origin: proposta
+      why: "Il farma tratta a sconto rispetto al resto della sanità per il rischio di scadenza dei brevetti; storicamente P/E tra 12x e 22x."
+    ev_ebitda: {min: 10, max: 20, origin: documento}
+  healthcare_other:
+    name: Sanità (dispositivi, servizi, assicurazioni sanitarie)
+    pe:
+      min: 15
+      max: 28
+      origin: proposta
+      why: "I dispositivi medici crescono in modo stabile e trattano a multipli alti (fino a ~28-30x); le assicurazioni sanitarie e i servizi hanno margini bassi e stanno nella parte bassa (~15x)."
+    ev_ebitda:
+      min: 12
+      max: 22
+      origin: proposta
+      why: "Stessa logica del P/E: dispositivi in alto, servizi in basso. Fascia leggermente sopra il farma per l'assenza del rischio brevetti."
+  energy:
+    name: Energia
+    pe:
+      min: 8
+      max: 16
+      origin: proposta
+      why: "Utili legati al prezzo del petrolio: il mercato paga poco per utili instabili. Media storica del settore ~12x."
+    ev_ebitda:
+      min: 4
+      max: 8
+      origin: proposta
+      why: "Business ad alta intensità di capitale e ciclico; le integrate trattano storicamente intorno a 5-6x."
+  materials:
+    name: Materiali
+    pe:
+      min: 12
+      max: 22
+      origin: proposta
+      why: "Settore ciclico: la chimica specializzata sta nella parte alta, miniere e acciaio nella parte bassa."
+    ev_ebitda:
+      min: 7
+      max: 12
+      origin: proposta
+      why: "Chimica ~10-12x, metalli e miniere ~6-8x."
+  industrials:
+    name: Industriali
+    pe:
+      min: 15
+      max: 25
+      origin: proposta
+      why: "Ciclico ma con molti business di qualità (aerospazio, automazione); media storica S&P Industrials ~18-20x."
+    ev_ebitda:
+      min: 10
+      max: 16
+      origin: proposta
+      why: "Media storica S&P Industrials ~12-14x EV/EBITDA; fascia ±20-25% attorno."
+  telecom:
+    name: Telecomunicazioni
+    pe:
+      min: 8
+      max: 15
+      origin: proposta
+      why: "Crescita bassa e investimenti in rete pesanti: multipli da 'utility'."
+    ev_ebitda:
+      min: 6
+      max: 9
+      origin: proposta
+      why: "Gli operatori telecom USA trattano storicamente tra 6x e 8x EBITDA."
+  media_internet:
+    name: Media e Internet
+    pe:
+      min: 15
+      max: 30
+      origin: proposta
+      why: "Mix tra intrattenimento (multipli medi) e piattaforme internet (multipli da tecnologia)."
+    ev_ebitda:
+      min: 10
+      max: 22
+      origin: proposta
+      why: "Media tradizionali ~8-12x, piattaforme internet ~15-22x."
+  reit:
+    name: REIT
+    p_ffo:
+      min: 12
+      max: 22
+      origin: proposta
+      why: "Per i REIT l'utile netto è distorto dagli ammortamenti immobiliari: si usa il P/FFO. Uffici ~8-12x, data center e torri 20x+; fascia centrale 12-22x."
+    ev_ebitda:
+      min: 14
+      max: 22
+      origin: proposta
+      why: "I REIT trattano storicamente intorno a 16-20x EBITDA."
+  real_estate_other:
+    name: Servizi immobiliari
+  other:
+    name: Altro
+
+
+# Doppie classi di azioni: la classe secondaria non viene valutata a parte.
+dual_class:
+  GOOG: GOOGL
+  FOX: FOXA
+  NWS: NWSA
+
+
+# Parametri WACC (CAPM). Vedi README per il metodo.
+wacc:
+  risk_free_series: DGS10                     # FRED: Treasury USA 10 anni
+  erp_pct: 4.33                               # Premio rischio azionario implicito (Damodaran) — DA AGGIORNARE OGNI MESE
+  erp_date: "2025-01"                         # mese a cui si riferisce erp_pct
+  tax_default_pct: 21                         # aliquota federale USA
+  tax_clip_pct: [0, 35]
+  cost_of_debt_clip_pct: [2, 12]
+  cost_of_debt_spread_pct: 1.5                # se manca il dato: risk free + 1,5%

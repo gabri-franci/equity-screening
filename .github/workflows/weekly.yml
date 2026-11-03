@@ -1,0 +1,48 @@
+name: Aggiornamento settimanale
+
+on:
+  schedule:
+    - cron: "17 5 * * 6"      # ogni sabato alle 05:17 UTC (mercati chiusi)
+  workflow_dispatch:          # avvio manuale dal tab Actions
+    inputs:
+      limit:
+        description: "Numero massimo di titoli (vuoto = tutti)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-screening
+  cancel-in-progress: false
+
+jobs:
+  screening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q tests
+      - name: Screening
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FINVIZ_AUTH: ${{ secrets.FINVIZ_AUTH }}
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python -m screener.run --limit "${{ github.event.inputs.limit }}"
+          else
+            python -m screener.run
+          fi
+      - name: Salva i risultati nel repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          git diff --cached --quiet && exit 0
+          git commit -m "Aggiornamento settimanale $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4; do git push && break; sleep $((2**i)); git pull --rebase; done

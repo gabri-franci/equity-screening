@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equity Screening</title>
+<style>
+:root{
+  --bg:#f6f7f9;--surface:#ffffff;--surface-2:#f0f2f5;--text:#16191f;--muted:#5b6472;--border:#dde1e7;
+  --accent:#1f4fd1;--good:#17803d;--good-bg:#e3f4e8;--vgood:#0f6b31;--vgood-bg:#c9ecd4;
+  --warn:#9a5b00;--warn-bg:#fdf0dc;--info:#1d5c9e;--info-bg:#e1ecf8;--bad:#b42318;--bad-bg:#fde7e5;
+  --ded-bg:#fff8e6;--ded-border:#e8c766;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115;--surface:#171a21;--surface-2:#1f232c;--text:#e7eaf0;--muted:#9aa3b2;--border:#2c313c;
+    --accent:#7aa2ff;--good:#6fd38f;--good-bg:#173022;--vgood:#8ee6aa;--vgood-bg:#1c3d29;
+    --warn:#f2b45c;--warn-bg:#3a2a12;--info:#8cbcf0;--info-bg:#16283d;--bad:#ff8a80;--bad-bg:#3d1a17;
+    --ded-bg:#2b2412;--ded-border:#7a6420;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115;--surface:#171a21;--surface-2:#1f232c;--text:#e7eaf0;--muted:#9aa3b2;--border:#2c313c;
+  --accent:#7aa2ff;--good:#6fd38f;--good-bg:#173022;--vgood:#8ee6aa;--vgood-bg:#1c3d29;
+  --warn:#f2b45c;--warn-bg:#3a2a12;--info:#8cbcf0;--info-bg:#16283d;--bad:#ff8a80;--bad-bg:#3d1a17;
+  --ded-bg:#2b2412;--ded-border:#7a6420;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px}
+.wrap{max-width:1400px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.meta{color:var(--muted);font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:8px}
+.tabs button{border:0;background:transparent;color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font:inherit}
+.tabs button.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:600}
+input[type=search]{flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit}
+label.chk{font-size:13px;color:var(--muted);display:flex;gap:4px;align-items:center}
+a.btn{background:var(--accent);color:#fff;text-decoration:none;padding:7px 12px;border-radius:6px;font-weight:600}
+main{padding:16px}
+details.sector{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+details.sector>summary{padding:10px 14px;cursor:pointer;font-weight:600;display:flex;justify-content:space-between}
+details.sector>summary .n{color:var(--muted);font-weight:400}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1000px;font-size:13px;table-layout:fixed}
+th:first-child{width:190px}th:nth-child(2){width:180px}
+th,td{padding:6px 8px;border-top:1px solid var(--border);text-align:right;white-space:nowrap}
+th{color:var(--muted);font-weight:500;background:var(--surface-2);position:sticky;top:0}
+td.l,th.l{text-align:left}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--surface-2)}
+.tk{font-weight:700;white-space:normal}
+.nm{color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-block;padding:1px 6px;border-radius:10px;font-size:11px;font-weight:600;margin-left:4px}
+td .chip{display:table;margin:2px 0 0 auto}
+th,td{vertical-align:top}
+.c-vgood{background:var(--vgood-bg);color:var(--vgood)}
+.c-good{background:var(--good-bg);color:var(--good)}
+.c-high{background:var(--warn-bg);color:var(--warn)}
+.c-low{background:var(--info-bg);color:var(--info)}
+.c-no{background:var(--bad-bg);color:var(--bad)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--border);color:var(--muted);margin-left:4px}
+.tag.out{border-color:var(--bad);color:var(--bad)}
+.tag.stale{border-color:var(--warn);color:var(--warn)}
+.na{color:var(--muted)}
+/* pannello dettaglio */
+#panel{position:fixed;top:0;right:0;height:100%;width:min(620px,100%);background:var(--surface);border-left:1px solid var(--border);
+  box-shadow:-8px 0 24px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .2s;overflow-y:auto;z-index:10}
+#panel.open{transform:none}
+#panel .ph{position:sticky;top:0;background:var(--surface);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
+#panel .pb{padding:12px 16px 40px}
+#panel h2{margin:0;font-size:18px}
+#panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:18px 0 6px}
+.x{border:0;background:var(--surface-2);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}
+.m{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.m .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.m .val{font-size:16px;font-weight:700}
+.m .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.ded{background:var(--ded-bg);border:1px solid var(--ded-border);border-radius:6px;padding:8px;margin-top:6px;font-size:12px}
+.ded b{display:block;margin-bottom:2px}
+.ded ul{margin:4px 0 0;padding-left:18px}
+.ded a{color:var(--accent);word-break:break-all}
+footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
+@media (max-width:640px){header,main{padding:12px 16px}.nm{display:none}input[type=search]{flex-basis:100%}table{min-width:820px}th:first-child{width:150px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Equity Screening — S&amp;P 500 e NASDAQ 100</h1>
+  <div class="meta" id="meta"></div>
+  <div class="bar">
+    <div class="tabs" id="tabs"></div>
+    <input type="search" id="q" placeholder="Cerca ticker o nome…">
+    <label class="chk"><input type="checkbox" id="techai"> Solo Tech &amp; AI</label>
+    <label class="chk"><input type="checkbox" id="exited" checked> Mostra usciti dall'indice</label>
+    <a class="btn" href="screening.xlsx" download>Scarica Excel</a>
+  </div>
+</div></header>
+<main><div class="wrap" id="list"></div></main>
+<aside id="panel" aria-hidden="true"><div class="ph"><div id="ph"></div><button class="x" id="close">Chiudi</button></div><div class="pb" id="pb"></div></aside>
+<footer>Dati: Yahoo Finance, SEC EDGAR, FRED, Damodaran<span id="fv"></span>. Strumento di analisi, non è una raccomandazione di investimento.</footer>
+<script id="data" type="application/json">{"generated": "in attesa del primo aggiornamento", "macro": {}, "finviz_elite": false, "criteria": {"roic": {"name": "ROIC (TTM)", "area": "Redditività", "unit": "pct", "help": "Return On Invested Capital — profitto operativo netto per capitale investito", "levels": [{"label": "Molto buono", "gt": 20}, {"label": "Buono", "gt": 10}]}, "roic_vs_wacc": {"name": "ROIC > WACC", "area": "Redditività", "unit": "bool", "help": "Condizione 1 del documento: il ROIC deve superare il costo del capitale"}, "wacc": {"name": "WACC", "area": "Redditività", "unit": "pct", "help": "Costo medio ponderato del capitale (sempre calcolato, vedi box)"}, "roe": {"name": "ROE (TTM)", "area": "Redditività", "unit": "pct", "help": "Utile per € investito dagli azionisti", "levels": [{"label": "Molto buono", "gt": 25}, {"label": "Buono", "gt": 15}]}, "op_margin": {"name": "Operating Margin (TTM)", "area": "Redditività", "unit": "pct", "help": "EBIT / Ricavi", "levels": [{"label": "Molto buono", "gt": 25}, {"label": "Buono", "gt": 15}]}, "fcf_margin": {"name": "FCF Margin (TTM)", "area": "Redditività", "unit": "pct", "help": "(Flusso di cassa operativo − Capex) / Ricavi", "levels": [{"label": "Molto buono", "gt": 15}, {"label": "Buono", "gt": 8}]}, "rev_cagr3": {"name": "Revenue CAGR 3Y", "area": "Crescita", "unit": "pct", "help": "Crescita annua composta dei ricavi, ultimi 3 esercizi", "levels": [{"label": "Molto buono", "gt": 10}, {"label": "Buono", "gt": 5}]}, "eps_cagr3": {"name": "EPS CAGR 3Y", "area": "Crescita", "unit": "pct", "help": "Crescita annua composta dell'utile per azione diluito, ultimi 3 esercizi", "levels": [{"label": "Molto buono", "gt": 5, "lt": 10}, {"label": "Buono", "gte": 10}]}, "fcf_cagr3": {"name": "FCF CAGR 3Y", "area": "Crescita", "unit": "pct", "help": "Crescita annua composta del Free Cash Flow, ultimi 3 esercizi", "levels": [{"label": "Molto buono", "gt": 10}, {"label": "Buono", "gt": 4}]}, "roic_3y": {"name": "ROIC ultimi 3Y", "area": "Crescita", "unit": "pct", "help": "ROIC degli ultimi 3 esercizi — sopra 10% e stabile / in crescita", "trend": {"min_each_year": 10, "growth_pp": 1.0, "stable_band_pp": 3.0, "label_growing": "Molto buono", "label_stable": "Buono"}}, "nd_ebitda": {"name": "Net Debt / EBITDA", "area": "Solidità", "unit": "x", "help": "Posizione finanziaria netta / EBITDA (TTM). Negativo = cassa netta (nessun giudizio)", "levels": [{"label": "Molto bene", "gte": 0, "lt": 1}, {"label": "Bene", "gt": 1, "lt": 2.5}]}, "de": {"name": "Debt / Equity", "area": "Solidità", "unit": "x", "help": "Debito totale / Patrimonio netto", "levels": [{"label": "Molto bene", "gte": 0, "lt": 1}, {"label": "Bene", "gt": 1, "lt": 1.5}]}, "current_ratio": {"name": "Current Ratio", "area": "Solidità", "unit": "x", "help": "Attività correnti / Passività correnti", "levels": [{"label": "Bene", "gt": 1, "lt": 2.5}]}, "pe_ttm": {"name": "P/E Trailing", "area": "Valutazione", "unit": "x", "band": "pe"}, "pe_fwd": {"name": "P/E Forward", "area": "Valutazione", "unit": "x"}, "fwd_lt_ttm": {"name": "Forward P/E < Trailing P/E", "area": "Valutazione", "unit": "bool", "help": "Regola sempre valida secondo il documento"}, "ev_ebitda": {"name": "EV / EBITDA", "area": "Valutazione", "unit": "x", "band": "ev_ebitda"}, "ev_sales": {"name": "EV / Sales", "area": "Valutazione", "unit": "x"}, "ebit_yield_rule": {"name": "EBIT Margin ÷ EV/Sales", "area": "Valutazione", "unit": "pct", "help": "Es. documento: EV/Sales 3x ⇒ EBIT Margin minimo 21% ⇒ 7% per ogni 1x di EV/Sales", "levels": [{"label": "Buono", "gte": 7}], "only_groups": ["industrials"]}, "rote": {"name": "ROTE (TTM)", "area": "Redditività", "unit": "pct", "help": "Utile netto / Patrimonio netto tangibile", "origin": "proposta", "levels": [{"label": "Buono", "gt": 12}]}, "ptbv": {"name": "P / Tangible Book", "area": "Valutazione", "unit": "x", "band": "ptbv"}, "cet1": {"name": "CET1 Ratio", "area": "Solidità", "unit": "pct", "origin": "proposta", "levels": [{"label": "Buono", "gt": 11}]}, "pb": {"name": "P / Book", "area": "Valutazione", "unit": "x", "band": "pb"}, "combined_ratio": {"name": "Combined Ratio", "area": "Redditività", "unit": "pct", "origin": "proposta", "levels": [{"label": "Buono", "lt": 100}]}, "p_ffo": {"name": "P / FFO", "area": "Valutazione", "unit": "x", "band": "p_ffo"}}, "groups": {"tech_ai": {"name": "Tech & AI", "pe": {"min": 20, "max": 50, "origin": "documento"}, "ev_ebitda": {"min": 15, "max": 30, "origin": "documento"}}, "consumer_cyclical": {"name": "Consumer Discretionary", "pe": {"min": 15, "max": 30, "origin": "documento"}, "ev_ebitda": {"min": 10, "max": 20, "origin": "documento"}}, "consumer_defensive": {"name": "Consumer Staples", "pe": {"min": 15, "max": 22, "origin": "documento"}, "ev_ebitda": {"min": 10, "max": 15, "origin": "documento"}}, "utilities": {"name": "Utilities", "pe": {"min": 10, "max": 15, "origin": "documento"}, "ev_ebitda": {"min": 7, "max": 12, "origin": "documento"}}, "bank": {"name": "Banche e Capital Markets", "pe": {"min": 8, "max": 20, "origin": "documento"}, "ptbv": {"min": 1, "max": 2, "origin": "proposta", "why": "Una banca con ROTE vicino al costo del capitale (~10-11%) vale circa 1x il patrimonio tangibile; 2x è giustificato solo da ROTE stabilmente sopra il 15-20%."}}, "insurance": {"name": "Assicurazioni", "pe": {"min": 8, "max": 20, "origin": "documento"}, "pb": {"min": 1, "max": 2.5, "origin": "proposta", "why": "Le assicurazioni con ROE 10-15% trattano storicamente tra 1x e 2x il book; le migliori (ROE >20%) fino a 2,5x."}}, "financial_other": {"name": "Finanziari non bancari (pagamenti, borse, gestori)", "pe": {"min": 8, "max": 20, "origin": "documento"}}, "pharma": {"name": "Farma e Biotech", "pe": {"min": 12, "max": 22, "origin": "proposta", "why": "Il farma tratta a sconto rispetto al resto della sanità per il rischio di scadenza dei brevetti; storicamente P/E tra 12x e 22x."}, "ev_ebitda": {"min": 10, "max": 20, "origin": "documento"}}, "healthcare_other": {"name": "Sanità (dispositivi, servizi, assicurazioni sanitarie)", "pe": {"min": 15, "max": 28, "origin": "proposta", "why": "I dispositivi medici crescono in modo stabile e trattano a multipli alti (fino a ~28-30x); le assicurazioni sanitarie e i servizi hanno margini bassi e stanno nella parte bassa (~15x)."}, "ev_ebitda": {"min": 12, "max": 22, "origin": "proposta", "why": "Stessa logica del P/E: dispositivi in alto, servizi in basso. Fascia leggermente sopra il farma per l'assenza del rischio brevetti."}}, "energy": {"name": "Energia", "pe": {"min": 8, "max": 16, "origin": "proposta", "why": "Utili legati al prezzo del petrolio: il mercato paga poco per utili instabili. Media storica del settore ~12x."}, "ev_ebitda": {"min": 4, "max": 8, "origin": "proposta", "why": "Business ad alta intensità di capitale e ciclico; le integrate trattano storicamente intorno a 5-6x."}}, "materials": {"name": "Materiali", "pe": {"min": 12, "max": 22, "origin": "proposta", "why": "Settore ciclico: la chimica specializzata sta nella parte alta, miniere e acciaio nella parte bassa."}, "ev_ebitda": {"min": 7, "max": 12, "origin": "proposta", "why": "Chimica ~10-12x, metalli e miniere ~6-8x."}}, "industrials": {"name": "Industriali", "pe": {"min": 15, "max": 25, "origin": "proposta", "why": "Ciclico ma con molti business di qualità (aerospazio, automazione); media storica S&P Industrials ~18-20x."}, "ev_ebitda": {"min": 10, "max": 16, "origin": "proposta", "why": "Media storica S&P Industrials ~12-14x EV/EBITDA; fascia ±20-25% attorno."}}, "telecom": {"name": "Telecomunicazioni", "pe": {"min": 8, "max": 15, "origin": "proposta", "why": "Crescita bassa e investimenti in rete pesanti: multipli da 'utility'."}, "ev_ebitda": {"min": 6, "max": 9, "origin": "proposta", "why": "Gli operatori telecom USA trattano storicamente tra 6x e 8x EBITDA."}}, "media_internet": {"name": "Media e Internet", "pe": {"min": 15, "max": 30, "origin": "proposta", "why": "Mix tra intrattenimento (multipli medi) e piattaforme internet (multipli da tecnologia)."}, "ev_ebitda": {"min": 10, "max": 22, "origin": "proposta", "why": "Media tradizionali ~8-12x, piattaforme internet ~15-22x."}}, "reit": {"name": "REIT", "p_ffo": {"min": 12, "max": 22, "origin": "proposta", "why": "Per i REIT l'utile netto è distorto dagli ammortamenti immobiliari: si usa il P/FFO. Uffici ~8-12x, data center e torri 20x+; fascia centrale 12-22x."}, "ev_ebitda": {"min": 14, "max": 22, "origin": "proposta", "why": "I REIT trattano storicamente intorno a 16-20x EBITDA."}}, "real_estate_other": {"name": "Servizi immobiliari"}, "other": {"name": "Altro"}}, "peer_medians": {}, "records": []}</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const C = D.criteria;
+const MARKETS = ['S&P 500','NASDAQ 100'];
+const COLS = ['roic','roe','op_margin','fcf_margin','rev_cagr3','eps_cagr3','nd_ebitda','de','pe_ttm','ev_ebitda'];
+const SHORT = {roic:'ROIC',roe:'ROE',op_margin:'Op. M.',fcf_margin:'FCF M.',rev_cagr3:'Ricavi 3Y',eps_cagr3:'EPS 3Y',
+  nd_ebitda:'ND/EBITDA',de:'D/E',pe_ttm:'P/E',ev_ebitda:'EV/EBITDA'};
+const AREAS = ['Redditività','Crescita','Solidità','Valutazione'];
+let market = MARKETS[0];
+try{ market = localStorage.getItem('mkt') || market }catch(e){}
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fmt(m, d){
+  if(!d) return '<span class="na">n.a.</span>';
+  if(d.v === null || d.v === undefined) return '<span class="na" title="'+esc(d.note)+'">n.c.</span>';
+  const u = (C[m]||{}).unit;
+  if(u==='bool') return '';
+  const v = Number(d.v);
+  return u==='pct' ? v.toFixed(1)+'%' : v.toFixed(2)+'x';
+}
+function chip(l){
+  if(!l) return '';
+  const cls = {'Molto buono':'c-vgood','Molto bene':'c-vgood','Buono':'c-good','Bene':'c-good','Nella fascia':'c-good',
+    'Sì':'c-good','Sopra fascia':'c-high','Sotto fascia':'c-low','No':'c-no'}[l] || 'c-good';
+  return '<span class="chip '+cls+'">'+esc(l)+'</span>';
+}
+function membership(r){ return r.memberships.find(x => x.index===market) }
+function render(){
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.m===market));
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const onlyTech = document.getElementById('techai').checked;
+  const showOut = document.getElementById('exited').checked;
+  const recs = D.records.filter(r => {
+    const m = membership(r); if(!m) return false;
+    if(!m.active && !showOut) return false;
+    if(onlyTech && !r.tech_ai) return false;
+    return !q || r.ticker.toLowerCase().includes(q) || (r.name||'').toLowerCase().includes(q);
+  });
+  const bySector = {};
+  recs.forEach(r => (bySector[r.sector_it] = bySector[r.sector_it] || []).push(r));
+  const head = '<tr><th class="l">Ticker</th><th class="l nm">Nome</th>' + COLS.map(c => '<th>'+SHORT[c]+'</th>').join('') + '</tr>';
+  let html = '';
+  Object.keys(bySector).sort().forEach(s => {
+    const rows = bySector[s].sort((a,b) => a.ticker.localeCompare(b.ticker)).map(r => {
+      const m = membership(r);
+      const other = r.memberships.filter(x => x.index!==market && x.active).map(x => x.index);
+      let tags = '';
+      if(other.length) tags += '<span class="tag">anche in '+esc(other.join(', '))+'</span>';
+      if(!m.active) tags += '<span class="tag out">uscito il '+esc(m.removed_on)+'</span>';
+      if(r.stale) tags += '<span class="tag stale">dati al '+esc(r.stale_since||r.updated)+'</span>';
+      return '<tr class="row" data-t="'+esc(r.ticker)+'"><td class="l tk">'+esc(r.ticker)+tags+'</td><td class="l nm">'+esc(r.name)+'</td>' +
+        COLS.map(c => { const d = r.metrics[c]; return '<td>'+fmt(c,d)+(d?chip(d.label):'')+'</td>' }).join('') + '</tr>';
+    }).join('');
+    html += '<details class="sector" open><summary>'+esc(s)+'<span class="n">'+bySector[s].length+' titoli</span></summary><div class="tbl"><table>'+head+rows+'</table></div></details>';
+  });
+  document.getElementById('list').innerHTML = html || '<p>Nessun titolo.</p>';
+  document.querySelectorAll('tr.row').forEach(tr => tr.addEventListener("click", () => openPanel(tr.dataset.t)));
+}
+function openPanel(t){
+  const r = D.records.find(x => x.ticker===t);
+  const other = r.memberships.map(x => x.index + (x.active ? '' : ' (uscito il '+x.removed_on+')')).join(' · ');
+  document.getElementById('ph').innerHTML = '<h2>'+esc(r.ticker)+' — '+esc(r.name)+'</h2><div class="meta">'+
+    esc(r.sector_it)+' · '+esc(r.industry||'')+' · fasce: '+esc(r.group_name)+'<br>'+esc(other)+
+    (r.secondary&&r.secondary.length?' · altre classi: '+esc(r.secondary.join(', ')):'')+
+    '<br>Settore da: '+esc(r.sector_src)+' · aggiornato '+esc(r.updated)+(r.stale?' (dati non aggiornati)':'')+'</div>';
+  let html = '';
+  AREAS.forEach(a => {
+    const ms = Object.keys(C).filter(m => C[m].area===a && r.metrics[m]);
+    if(!ms.length) return;
+    html += '<h3>'+a+'</h3>';
+    ms.forEach(m => {
+      const d = r.metrics[m], c = C[m];
+      let sub = [];
+      if(d.src) sub.push('Fonte: '+esc(d.src));
+      if(d.definition && !d.deduced) sub.push(esc(d.definition));
+      if(d.peer) sub.push('Mediana settore ('+esc(r.group_name)+', '+d.peer.n+' titoli): '+fmt(m,{v:d.peer.median}));
+      if(d.band) sub.push('Fascia '+esc(d.band.group)+': '+d.band.min+'x – '+d.band.max+'x ('+(d.band.origin==='documento'?'dal documento':'proposta')+')');
+      if(d.v===null && d.note) sub.push('<b>'+esc(d.note)+'</b>');
+      else if(d.note) sub.push(esc(d.note));
+      if(d.series && d.series.length) sub.push('Serie: '+d.series.map(x => x+'%').join(' → '));
+      let box = '';
+      if(d.deduced){
+        box = '<div class="ded"><b>Dato dedotto</b>'+(d.definition?'Formula: '+esc(d.definition)+'<br>':'')+
+          (d.why?'Ragionamento: '+esc(d.why):'')+
+          (d.docs&&d.docs.length?'<ul>'+d.docs.filter(Boolean).map(x => '<li>'+esc(x.label)+' — <a href="'+esc(x.url)+'" target="_blank" rel="noopener">link</a></li>').join('')+'</ul>':'')+'</div>';
+      }
+      if(d.band && d.band.origin!=='documento' && d.band.why){
+        box += '<div class="ded"><b>Fascia di settore dedotta</b>'+esc(d.band.why)+'</div>';
+      }
+      html += '<div class="m"><div class="top"><span>'+esc(c.name)+'</span><span class="val">'+fmt(m,d)+chip(d.label)+'</span></div>'+
+        (c.help?'<div class="sub">'+esc(c.help)+'</div>':'')+'<div class="sub">'+sub.join('<br>')+'</div>'+box+'</div>';
+    });
+  });
+  document.getElementById('pb').innerHTML = html;
+  const p = document.getElementById('panel'); p.classList.add('open'); p.setAttribute('aria-hidden','false');
+}
+document.getElementById('close').onclick = () => { const p = document.getElementById('panel'); p.classList.remove('open'); p.setAttribute('aria-hidden','true') };
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.getElementById('close').click() });
+document.getElementById('tabs').innerHTML = MARKETS.map(m => '<button data-m="'+m+'">'+m+'</button>').join('');
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { market = b.dataset.m; try{localStorage.setItem('mkt',market)}catch(e){} render() });
+['q','techai','exited'].forEach(id => document.getElementById(id).addEventListener('input', render));
+const rf = D.macro.rf||{}, erp = D.macro.erp||{};
+document.getElementById('meta').textContent = 'Aggiornato: '+D.generated.replace('T',' ')+' UTC · Treasury 10Y '+(rf.v??'n.d.')+'% · ERP '+(erp.v??'n.d.')+'% · '+D.records.length+' aziende';
+document.getElementById('fv').textContent = D.finviz_elite ? ', Finviz Elite' : '';
+render();
+</script>
+</body>
+</html>
