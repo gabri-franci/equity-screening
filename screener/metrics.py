@@ -444,16 +444,28 @@ class Engine:
                      docs=[self.ydoc("key-statistics", "capitalizzazione"), d])
 
     def cet1(self) -> Datum:
-        r = sec.latest_ratio(self.t, "CommonEquityTierOne")
+        r = sec.latest_ratio(self.t, ["CommonEquityTierOne", "CommonEquityTier1", "CET1"], 0.04, 0.30)
         if not r:
             return missing("CET1 non presente nei dati XBRL SEC: verificare nel 10-K / report trimestrale della banca")
         end, val, entry, concept = r
-        v = round(val * 100, 2) if val < 1 else round(val, 2)
+        v = round(val * 100, 2)
         return Datum(v=v, src=sec.SRC, definition=f"Voce XBRL '{concept}' dichiarata dalla banca",
                      docs=[sec.doc(sec.cik_str(self.t), entry)])
 
     def pb(self) -> Datum:
-        return self.cascade(lambda: self.yinfo("priceToBook", "Prezzo / Valore contabile per azione (Yahoo)"))
+        mcap = _f(self.info.get("marketCap"))
+        eq, d = self.mrq("Patrimonio netto", "Stockholders Equity", "Common Stock Equity")
+        calc = round(mcap / eq, 2) if mcap and eq and eq > 0 else None
+        direct = self.yinfo("priceToBook", "Prezzo / Valore contabile per azione (Yahoo)")
+        if direct and direct.ok and (calc is None or abs(direct.v / calc - 1) <= 0.3):
+            return direct
+        if calc is None:
+            return missing("P/B non calcolabile")
+        why = f"Capitalizzazione {fmt_money(mcap)} / Patrimonio netto {fmt_money(eq)} = {calc}x."
+        if direct and direct.ok:
+            why += f" Il valore fornito da Yahoo ({direct.v}x) è stato scartato perché incoerente con questo calcolo."
+        return Datum(v=calc, src=yh.SRC + " (calcolato)", deduced=True, definition="Capitalizzazione / Patrimonio netto",
+                     why=why, docs=[self.ydoc("key-statistics", "capitalizzazione"), d])
 
     def combined_ratio(self) -> Datum:
         return missing("Combined Ratio non disponibile in automatico: verificare nel 10-K o su Morningstar")

@@ -18,9 +18,12 @@ log = logging.getLogger(__name__)
 
 MEMBERSHIP_CSV = DATA_DIR / "membership.csv"
 INDEXES = {
-    "S&P 500": "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-    "NASDAQ 100": "https://en.wikipedia.org/wiki/Nasdaq-100",
+    "S&P 500": ["https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"],
+    "NASDAQ 100": ["https://en.wikipedia.org/wiki/Nasdaq-100",
+                   "https://en.wikipedia.org/wiki/List_of_Nasdaq-100_companies",
+                   "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"],
 }
+NASDAQ_API = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
 COLUMNS = ["ticker", "index", "name", "gics_sector", "first_seen", "last_seen", "active", "removed_on"]
 
 
@@ -58,6 +61,30 @@ def _pick_table(html: str, min_rows: int, max_rows: int) -> pd.DataFrame:
     raise ValueError("tabella dei costituenti non trovata. Tabelle viste: " + " | ".join(seen[:8]))
 
 
+def _from_wikipedia(url: str, lo: int, hi: int) -> pd.DataFrame:
+    html = http_get(url, headers={"User-Agent": GENERIC_UA}).text
+    t = _pick_table(html, lo, hi)
+    sym = _col(t, "symbol", "ticker")
+    name = _col(t, "security", "company", "name") or sym
+    sector = _col(t, "sector")
+    return pd.DataFrame({
+        "ticker": t[sym].map(to_yahoo),
+        "name": t[name].astype(str),
+        "gics_sector": t[sector].astype(str) if sector else "",
+    })
+
+
+def _from_nasdaq_api() -> pd.DataFrame:
+    """Elenco ufficiale dal sito Nasdaq (fonte di riserva per il NASDAQ 100)."""
+    r = http_get(NASDAQ_API, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}).json()
+    rows = (r.get("data") or {}).get("data", {}).get("rows") or []
+    return pd.DataFrame({
+        "ticker": [to_yahoo(x["symbol"]) for x in rows],
+        "name": [x.get("companyName", "") for x in rows],
+        "gics_sector": "",
+    })
+
+
 def fetch_current() -> dict[str, pd.DataFrame]:
     """Scarica l'elenco attuale dei titoli. Ritorna {indice: DataFrame(ticker, name, gics_sector)}.
 
@@ -65,23 +92,24 @@ def fetch_current() -> dict[str, pd.DataFrame]:
     l'elenco salvato in data/membership.csv.
     """
     out = {}
-    for idx, url in INDEXES.items():
-        try:
-            html = http_get(url, headers={"User-Agent": GENERIC_UA}).text
-            lo, hi = (480, 520) if idx == "S&P 500" else (95, 110)
-            t = _pick_table(html, lo, hi)
-            sym = _col(t, "symbol", "ticker")
-            name = _col(t, "security", "company", "name") or sym
-            sector = _col(t, "sector")
-            df = pd.DataFrame({
-                "ticker": t[sym].map(to_yahoo),
-                "name": t[name].astype(str),
-                "gics_sector": t[sector].astype(str) if sector else "",
-            })
-            out[idx] = df[df["ticker"].str.len() > 0]
-            log.info("%s: %d titoli", idx, len(out[idx]))
-        except Exception as e:
-            log.error("%s: elenco titoli non aggiornato (%s)", idx, e)
+    for idx, urls in INDEXES.items():
+        lo, hi = (480, 520) if idx == "S&P 500" else (95, 110)
+        attempts = [lambda u=u: _from_wikipedia(u, lo, hi) for u in urls]
+        if idx == "NASDAQ 100":
+            attempts.append(_from_nasdaq_api)
+        for fn in attempts:
+            try:
+                df = fn()
+                df = df[df["ticker"].str.len() > 0]
+                if lo <= len(df) <= hi:
+                    out[idx] = df
+                    log.info("%s: %d titoli", idx, len(df))
+                    break
+                log.warning("%s: numero titoli anomalo (%d), provo la fonte successiva", idx, len(df))
+            except Exception as e:
+                log.warning("%s: fonte non disponibile (%s)", idx, str(e)[:300])
+        else:
+            log.error("%s: elenco titoli non aggiornato, uso quello salvato", idx)
     return out
 
 

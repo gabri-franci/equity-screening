@@ -97,17 +97,31 @@ def annual(ticker: str, concepts: list[str], unit: str = "USD", flow: bool = Tru
     return sorted(best.values(), key=lambda x: x[0], reverse=True)
 
 
-def latest_ratio(ticker: str, keyword: str) -> tuple | None:
-    """Cerca un rapporto (unità 'pure') il cui nome contiene keyword, es. CET1."""
+def latest_ratio(ticker: str, keywords: list[str], lo: float, hi: float) -> tuple | None:
+    """Ultimo rapporto (unità 'pure' o percentuale) il cui nome contiene una delle parole chiave.
+
+    Cerca in tutti i namespace (us-gaap e tag propri della società) e scarta i valori
+    fuori dall'intervallo plausibile [lo, hi] (espresso come frazione, es. 0.04-0.30).
+    """
     f = facts(ticker)
     if not f:
         return None
     found = []
-    for name, node in f.get("facts", {}).get("us-gaap", {}).items():
-        if keyword.lower() in name.lower() and "pure" in node.get("units", {}):
-            for e in node["units"]["pure"]:
-                if str(e.get("form", "")).startswith("10-"):
-                    found.append((e["end"], float(e["val"]), e, name))
+    for ns, concepts in f.get("facts", {}).items():
+        for name, node in concepts.items():
+            low = name.lower()
+            if not any(k.lower() in low for k in keywords):
+                continue
+            if any(x in low for x in ("minimum", "required", "wellcapitalized", "buffer", "adequacy")):
+                continue
+            for unit, items in node.get("units", {}).items():
+                if unit not in ("pure", "percent"):
+                    continue
+                for e in items:
+                    v = float(e["val"])
+                    v = v / 100 if v > 1 else v
+                    if lo <= v <= hi and str(e.get("form", "")).startswith("10-"):
+                        found.append((e["end"], v, e, f"{ns}:{name}"))
     if not found:
         return None
     return max(found, key=lambda x: (x[0], x[2].get("filed", "")))

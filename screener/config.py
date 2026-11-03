@@ -15,7 +15,7 @@ DOCS_DIR = ROOT / "docs"
 
 # SEC chiede un User-Agent con nome e contatto. Impostalo come secret SEC_USER_AGENT
 # nel repository (es. "EquityScreening tuonome@esempio.com").
-SEC_USER_AGENT = os.environ.get("SEC_USER_AGENT", "EquityScreening research script")
+SEC_USER_AGENT = os.environ.get("SEC_USER_AGENT", "").strip() or "EquityScreening research script"
 GENERIC_UA = "Mozilla/5.0 (compatible; EquityScreening/1.0)"
 
 
