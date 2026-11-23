@@ -15,7 +15,7 @@ class Datum:
     docs: list = field(default_factory=list)   # documenti di origine [{"label":..., "url":...}]
     note: str = ""                # es. "non calcolabile: EBITDA negativo"
     series: list = field(default_factory=list)  # serie storica, es. ROIC per esercizio
-    period_years: int = 0         # >0 se calcolato su meno anni del previsto (es. 4 invece di 5): niente giudizio
+    period_years: int = 0         # >0 se calcolato su meno anni del previsto (es. 3 invece di 5): segnalato in tabella
 
     @property
     def ok(self) -> bool:

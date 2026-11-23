@@ -1,11 +1,12 @@
 {
   "tickers": [
+    "2330.TW",
     "AAPL",
     "AMZN",
     "AXP",
     "CDNS",
+    "CNSWF",
     "CPRT",
-    "CSU.TO",
     "CTAS",
     "DCI",
     "DOL.TO",
@@ -39,7 +40,6 @@
     "RMS.PA",
     "TDG",
     "TSCO",
-    "TSM",
     "UNH",
     "UNI.MI",
     "V",

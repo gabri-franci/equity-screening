@@ -199,7 +199,7 @@ function fmt(m, d, cur){
   if(d.v === null || d.v === undefined) return '<span class="na" title="'+esc(d.note)+'">n.c.</span>';
   const u = (C[m]||{}).unit;
   if(u==='bool') return '';
-  const pt = d.period_years ? '<span class="ptag" title="Calcolato su '+d.period_years+' anni invece di 5: nessun giudizio">'+d.period_years+'A</span>' : '';
+  const pt = d.period_years ? '<span class="ptag" title="Calcolato su '+d.period_years+' anni invece di 5 (dati disponibili)">'+d.period_years+'A</span>' : '';
   if(u==='money') return money(d.v, cur)+pt;
   const v = Number(d.v);
   return (u==='pct' ? v.toFixed(1)+'%' : v.toFixed(2)+'x')+pt;

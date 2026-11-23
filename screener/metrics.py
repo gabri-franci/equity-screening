@@ -166,6 +166,13 @@ class Engine:
             if ic <= 0:
                 base.note = "non calcolabile: capitale investito ≤ 0"
                 return base
+            assets, d5 = self.mrq("Totale attivo", "Total Assets")
+            if assets and ic < 0.05 * assets:
+                base.note = (f"non significativo: capitale investito {fmt_money(ic)} pari a meno del 5% dell'attivo "
+                             f"({fmt_money(assets)}) perché la cassa quasi pareggia debito e patrimonio; "
+                             f"il ROIC risulterebbe {pct(ebit * (1 - t) / ic)}%, un numero senza significato economico")
+                base.docs.append(d5)
+                return base
             base.v = pct(ebit * (1 - t) / ic)
             base.why = (f"NOPAT = EBIT {fmt_money(ebit)} × (1 − {t:.1%}) = {fmt_money(ebit * (1 - t))}; "
                         f"Capitale investito = {fmt_money(debt)} + {fmt_money(eq)} − {fmt_money(cash)} = {fmt_money(ic)}; "

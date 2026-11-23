@@ -72,9 +72,9 @@ def test_core_metrics():
     # ROIC = 410 × (1−0.20) / (300 + 1000 − 200) = 29.82%
     assert o["roic"].v == pytest.approx(29.82, abs=0.01) and o["roic"].deduced
     assert o["roe"].v == 31.0 and not o["roe"].deduced           # fornito direttamente da Yahoo
-    # Yahoo ha solo 4 esercizi: CAGR sul periodo disponibile (3 anni), segnalato e senza giudizio
+    # Yahoo ha solo 4 esercizi: CAGR sul periodo disponibile (3 anni), segnalato, giudizio mantenuto
     assert o["rev_cagr5"].v == pytest.approx(10.0, abs=0.01) and o["rev_cagr5"].period_years == 3
-    assert scoring.rate("rev_cagr5", o["rev_cagr5"].to_dict(), "tech_ai", CFG) == {}
+    assert scoring.rate("rev_cagr5", o["rev_cagr5"].to_dict(), "tech_ai", CFG)["label"] == "Buono"   # giudizio mantenuto
     assert o["fcf_margin"].v == pytest.approx((450 - 100) / 1340 * 100, abs=0.01)
     assert o["nd_ebitda"].v == pytest.approx(100 / 520, abs=0.01)
     assert o["de"].v == 0.30
@@ -153,6 +153,14 @@ def test_annual_fallback_without_quarters():
     y.inc_q = pd.DataFrame(); y.cf_q = pd.DataFrame()      # conti solo semestrali/annuali
     o = Engine("MC.PA", y, None, MACRO, CFG).run(set(CFG["skip_by_group"]["default"]))
     assert o["roic"].v is not None and "ultimo esercizio annuale" in o["roic"].docs[0]["label"]
+
+
+def test_roic_not_meaningful_with_tiny_capital():
+    y = fake("MEDP")
+    y.bal_q = y.bal_q.T.assign(**{"Cash Cash Equivalents And Short Term Investments": [1290] * 5,
+                                  "Total Assets": [3000] * 5}).T          # IC = 300 + 1000 − 1290 = 10
+    o = Engine("MEDP", y, None, MACRO, CFG).run(set(CFG["skip_by_group"]["default"]))
+    assert o["roic"].v is None and "non significativo" in o["roic"].note
 
 
 def test_negative_values_no_judgment():

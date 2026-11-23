@@ -36,6 +36,7 @@ LTD_CUR = ["LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent
 STD = ["ShortTermBorrowings", "CommercialPaper"]
 SHARES = ["WeightedAverageNumberOfDilutedSharesOutstanding"]
 TAX = ["IncomeTaxExpenseBenefit"]
+ASSETS = ["Assets"]
 PRETAX = ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
           "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments"]
 
@@ -46,6 +47,7 @@ YAHOO_ROWS = {  # stessa grandezza nei bilanci annuali Yahoo (riserva)
     "eq": ("bal_a", ("Stockholders Equity", "Common Stock Equity")),
     "cash": ("bal_a", ("Cash Cash Equivalents And Short Term Investments", "Cash And Cash Equivalents")),
     "debt": ("bal_a", ("Total Debt",)), "shares": ("inc_a", ("Diluted Average Shares",)),
+    "assets": ("bal_a", ("Total Assets",)),
 }
 
 YEARS = 5
@@ -91,7 +93,7 @@ class FiscalHistory:
                 "ebit": (EBIT, "USD", True), "ocf": (OCF, "USD", True), "capex": (CAPEX, "USD", True),
                 "da": (DA, "USD", True), "eq": (EQ, "USD", False), "cash": (CASH, "USD", False),
                 "sti": (STI, "USD", False), "shares": (SHARES, "shares", True), "tax": (TAX, "USD", True),
-                "pretax": (PRETAX, "USD", True),
+                "pretax": (PRETAX, "USD", True), "assets": (ASSETS, "USD", False),
             }[key]
             out = {}
             for end, (v, e, concept) in sec.annual_merged(self.t, concepts, unit, flow).items():
@@ -213,8 +215,8 @@ class FiscalHistory:
         base.v = round(g * 100, 2)
         base.why = f"{txt}; CAGR = {base.v}%"
         if years < YEARS:
-            base.why += (f". ATTENZIONE: disponibili solo {years} anni di bilanci invece di 5, quindi il CAGR è su {years} anni "
-                         f"e non riceve il giudizio Buono/Molto buono (le soglie valgono per 5 anni)")
+            base.why += (f". ATTENZIONE: disponibili solo {years} anni di bilanci invece di 5, "
+                         f"quindi il CAGR è calcolato su {years} anni")
         return base
 
     def roic_avg5(self) -> Datum:
@@ -231,6 +233,10 @@ class FiscalHistory:
             ic = d + eq["v"] - c
             if ic <= 0:
                 rows.append(f"{end[:4]}: escluso (capitale investito ≤ 0)")
+                continue
+            assets = self.at("assets", end)
+            if assets and ic < 0.05 * assets["v"]:
+                rows.append(f"{end[:4]}: escluso (capitale investito {fmt_money(ic)} sotto il 5% dell'attivo: ROIC non significativo)")
                 continue
             r = ebit["v"] * (1 - t) / ic * 100
             vals.append(r)
@@ -331,7 +337,7 @@ class FiscalHistory:
         v = sum(vals) / len(vals)
         why = "; ".join(rows) + f". Media di {len(vals)} esercizi = {v:.2f}{'%' if unit == 'pct' else 'x'}"
         if len(vals) < YEARS:
-            why += (f". ATTENZIONE: media su {len(vals)} esercizi invece di 5, quindi senza giudizio Buono/Molto buono")
+            why += f". ATTENZIONE: media su {len(vals)} esercizi invece di 5 (dati disponibili)"
         return Datum(v=round(v, 2), src="Bilanci annuali (calcolato)", deduced=True, definition=definition,
                      why=why, docs=uniq, series=[round(x, 2) for x in reversed(vals)],
                      period_years=len(vals) if len(vals) < YEARS else 0)
