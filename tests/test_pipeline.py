@@ -98,6 +98,10 @@ def test_fcf_and_price():
     assert q["changes"]["1G"] == round((last / (last - 0.04) - 1) * 100, 2)
     assert q["changes"]["1A"] > 0 and q["weekly"] and 55 <= len(q["daily"]) <= 70
     assert q["weekly"][-1][0] == 20251031
+    assert q["ath"] == q["price"] and q["from_ath_pct"] == 0          # serie sempre crescente: oggi è il massimo
+    y2 = fake(); y2.hist = pd.Series([100.0, 150.0, 120.0], index=pd.to_datetime(["2020-01-02", "2021-06-01", "2025-10-31"]))
+    q2 = price_block(y2)
+    assert q2["ath"] == 150.0 and q2["ath_date"] == "2021-06-01" and q2["from_ath_pct"] == -20.0
 
 
 def test_news_normalization(monkeypatch):

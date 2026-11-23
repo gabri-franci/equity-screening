@@ -19,7 +19,7 @@ def main() -> None:
               f"indici {[m['index'] for m in r['memberships']]} | stale={r.get('stale')}")
         q = r.get("quote") or {}
         print(f"  prezzo {q.get('price')} {q.get('currency', '')} al {q.get('date')} | var {q.get('changes')} | "
-              f"settimanali {len(q.get('weekly') or [])} giornalieri {len(q.get('daily') or [])}")
+              f"settimanali {len(q.get('weekly') or [])} giornalieri {len(q.get('daily') or [])} | massimo {q.get('ath')} il {q.get('ath_date')} ({q.get('from_ath_pct')}%) storico dal {q.get('history_from')}")
         for m, x in r["metrics"].items():
             v = x.get("v")
             if v is None:

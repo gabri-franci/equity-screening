@@ -49,8 +49,8 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
                     log.debug("%s %s: %s", ticker, name, e)
             try:
                 # 7 anni: servono i prezzi a fine esercizio degli ultimi 5 esercizi (P/E ed EV/EBITDA storici)
-                start = (pd.Timestamp.today() - pd.DateOffset(years=7, days=20)).date().isoformat()
-                h = t.history(start=start, interval="1d", auto_adjust=False)
+                # tutto lo storico disponibile: serve per il massimo di sempre (e per i P/E storici)
+                h = t.history(period="max", interval="1d", auto_adjust=False)
                 if h is not None and not h.empty:
                     c = h["Close"].dropna()
                     c.index = pd.to_datetime(c.index).tz_localize(None).normalize()

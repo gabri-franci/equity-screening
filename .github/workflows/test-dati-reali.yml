@@ -23,7 +23,7 @@ jobs:
       - name: Screening su un campione
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
-        run: python -m screener.run --tickers 2330.TW,CNSWF,MEDP,AAPL,MC.PA,ABNB
+        run: python -m screener.run --tickers NVDA,AAPL,KO,MC.PA,2330.TW,ANT
       - name: Riepilogo
         run: python -m screener.summary
       - name: Prova ricerca per nome

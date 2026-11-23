@@ -575,5 +575,8 @@ def price_block(y: YahooData) -> dict:
                weekly=[[to_int(i), round(float(v), 2)] for i, v in weekly.items()],
                daily=[[to_int(i), round(float(v), 2)] for i, v in daily.items()],
                high_52w=round(float(h[h.index > last_dt - pd.Timedelta(days=365)].max()), 2),
+               ath=round(float(h.max()), 2), ath_date=h.idxmax().date().isoformat(),
+               from_ath_pct=round((last / float(h.max()) - 1) * 100, 2),
+               history_from=h.index[0].date().isoformat(),
                low_52w=round(float(h[h.index > last_dt - pd.Timedelta(days=365)].min()), 2))
     return out

@@ -24,10 +24,10 @@ def refresh(rec: dict) -> bool:
     import yfinance as yf
 
     t = yf.Ticker(rec["ticker"])
-    start = (pd.Timestamp.today() - pd.DateOffset(years=5, days=20)).date().isoformat()
+
     for i in range(3):
         try:
-            h = t.history(start=start, interval="1d", auto_adjust=False)
+            h = t.history(period="max", interval="1d", auto_adjust=False)
             if h is None or h.empty:
                 raise RuntimeError("storico vuoto")
             c = h["Close"].dropna()

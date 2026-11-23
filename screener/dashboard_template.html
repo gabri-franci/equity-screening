@@ -335,6 +335,7 @@ const RANGES = [['1M',30,'daily'],['3M',91,'daily'],['6M',182,'weekly'],['YTD','
 const CHG = ['1G','1S','1M','3M','6M','YTD','1A','3A','5A'];
 const toDate = n => new Date(Math.floor(n/10000), Math.floor(n/100)%100-1, n%100);
 const fmtDate = n => { const s=String(n); return s.slice(6,8)+'/'+s.slice(4,6)+'/'+s.slice(0,4) };
+function fmtIso(s){ return s ? s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4) : '' }
 function quoteHtml(r){
   const q = r.quote||{};
   if(q.price===null||q.price===undefined) return '<div class="quote"><b>Prezzo non disponibile</b></div>';
@@ -342,6 +343,9 @@ function quoteHtml(r){
     '<span class="big">'+Number(q.price).toFixed(2)+' '+esc(q.currency||'')+'</span>'+
     '<span class="sub">chiusura '+esc(q.date||'')+' · <a href="'+esc(q.url||'#')+'" target="_blank" rel="noopener">Yahoo Finance</a></span></div>';
   if(q.high_52w) h += '<div class="sub">Min/Max 52 settimane: '+q.low_52w.toFixed(2)+' – '+q.high_52w.toFixed(2)+'</div>';
+  if(q.ath) h += '<div class="sub" style="margin-top:2px">Massimo storico: <b>'+q.ath.toFixed(2)+'</b> il '+esc(fmtIso(q.ath_date))+
+    ' · prezzo attuale '+pctChg(q.from_ath_pct)+' dal massimo'+
+    '<span style="color:var(--muted)"> (massimo di chiusura su tutto lo storico Yahoo, dal '+esc(fmtIso(q.history_from))+', rettificato per gli split)</span></div>';
   h += '<div class="chgs">'+CHG.map(k => '<div><span>'+k+'</span>'+pctChg((q.changes||{})[k])+'</div>').join('')+'</div>';
   if(q.weekly && q.weekly.length){
     h += '<div class="ranges" id="ranges">'+RANGES.map(x => '<button data-r="'+x[0]+'">'+x[0]+'</button>').join('')+'</div>'+

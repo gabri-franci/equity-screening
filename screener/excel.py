@@ -45,7 +45,7 @@ def write(data: dict, path) -> None:
     for market, keep in sheets:
         ws = wb.create_sheet(market)
         cols = ["Settore", "Ticker", "Watchlist", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato",
-                "Prezzo", "Valuta", "Data prezzo", "Valuta bilanci"] + [f"Var. {p} %" for p in PRICE_CHG]
+                "Prezzo", "Valuta", "Data prezzo", "Valuta bilanci", "Massimo storico", "Data massimo", "Distanza dal massimo %"] + [f"Var. {p} %" for p in PRICE_CHG]
         for m in metrics:
             cols += [crit[m]["name"], "Giudizio"]
         _header(ws, cols)
@@ -55,7 +55,8 @@ def write(data: dict, path) -> None:
                    ", ".join(r.get("secondary", [])),
                    r["updated"] + (" (dati non aggiornati)" if r.get("stale") else "")]
             q = r.get("quote") or {}
-            row += [q.get("price"), q.get("currency", ""), q.get("date", ""), r.get("fin_currency", "")]
+            row += [q.get("price"), q.get("currency", ""), q.get("date", ""), r.get("fin_currency", ""),
+                    q.get("ath"), q.get("ath_date", ""), q.get("from_ath_pct")]
             row += [(q.get("changes") or {}).get(p) for p in PRICE_CHG]
             for m in metrics:
                 d = r["metrics"].get(m)
