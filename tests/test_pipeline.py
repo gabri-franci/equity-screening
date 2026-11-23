@@ -72,7 +72,9 @@ def test_core_metrics():
     # ROIC = 410 × (1−0.20) / (300 + 1000 − 200) = 29.82%
     assert o["roic"].v == pytest.approx(29.82, abs=0.01) and o["roic"].deduced
     assert o["roe"].v == 31.0 and not o["roe"].deduced           # fornito direttamente da Yahoo
-    assert o["rev_cagr5"].v is None and "6 esercizi" in o["rev_cagr5"].note   # Yahoo ha solo 4 esercizi
+    # Yahoo ha solo 4 esercizi: CAGR sul periodo disponibile (3 anni), segnalato e senza giudizio
+    assert o["rev_cagr5"].v == pytest.approx(10.0, abs=0.01) and o["rev_cagr5"].period_years == 3
+    assert scoring.rate("rev_cagr5", o["rev_cagr5"].to_dict(), "tech_ai", CFG) == {}
     assert o["fcf_margin"].v == pytest.approx((450 - 100) / 1340 * 100, abs=0.01)
     assert o["nd_ebitda"].v == pytest.approx(100 / 520, abs=0.01)
     assert o["de"].v == 0.30
@@ -203,18 +205,24 @@ def test_full_run_offline(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "HISTORY_DIR", tmp_path / "history")
     monkeypatch.setattr(run, "DOCS_DIR", tmp_path / "docs")
     monkeypatch.setattr(run.time, "sleep", lambda s: None)
+    (tmp_path / "wl.json").write_text('{"tickers": ["AAPL", "MC.PA"]}')
+    (tmp_path / "dv.json").write_text('{"tickers": []}')
+    monkeypatch.setattr(run, "WATCHLIST_JSON", tmp_path / "wl.json")
+    monkeypatch.setattr(run, "DA_VALUTARE_JSON", tmp_path / "dv.json")
     sp = pd.DataFrame({"ticker": ["AAPL", "JPM", "O", "GOOGL", "GOOG"], "name": list("ABCDE"), "gics_sector": [""] * 5})
     nd = pd.DataFrame({"ticker": ["AAPL", "GOOGL", "GOOG"], "name": list("ADE"), "gics_sector": [""] * 3})
     monkeypatch.setattr(constituents, "fetch_current", lambda: {"S&P 500": sp, "NASDAQ 100": nd})
     sectors = {"AAPL": ("Technology", "Consumer Electronics"), "JPM": ("Financial Services", "Banks - Diversified"),
-               "O": ("Real Estate", "REIT - Retail"), "GOOGL": ("Communication Services", "Internet Content & Information")}
+               "O": ("Real Estate", "REIT - Retail"), "GOOGL": ("Communication Services", "Internet Content & Information"),
+               "MC.PA": ("Consumer Cyclical", "Luxury Goods")}
     monkeypatch.setattr(run.yh, "fetch", lambda t: fake(t, *sectors[t]))
     monkeypatch.setattr(run.macro, "risk_free", lambda s: Datum(v=4.0, src="test"))
     run.main([])
 
     data = json.loads((tmp_path / "docs" / "data" / "latest.json").read_text())
     recs = {r["ticker"]: r for r in data["records"]}
-    assert set(recs) == {"AAPL", "JPM", "O", "GOOGL"}               # GOOG confluisce in GOOGL
+    assert set(recs) == {"AAPL", "JPM", "O", "GOOGL", "MC.PA"}      # GOOG confluisce in GOOGL; MC.PA dalla watchlist
+    assert recs["MC.PA"]["memberships"] == [] and data["watchlist"] == ["AAPL", "MC.PA"]
     assert recs["GOOGL"]["secondary"] == ["GOOG"] and recs["GOOGL"]["tech_ai"]
     assert {m["index"] for m in recs["AAPL"]["memberships"]} == {"S&P 500", "NASDAQ 100"}
     assert "roic" not in recs["JPM"]["metrics"] and "rote" in recs["JPM"]["metrics"]
@@ -242,7 +250,7 @@ def test_full_run_offline(tmp_path, monkeypatch):
     monkeypatch.setattr(run.yh, "fetch", flaky)
     run.main([])
     recs = {r["ticker"]: r for r in json.loads((tmp_path / "docs" / "data" / "latest.json").read_text())["records"]}
-    assert set(recs) == {"AAPL", "JPM", "O", "GOOGL"}
+    assert set(recs) == {"AAPL", "JPM", "O", "GOOGL", "MC.PA"}
     assert not recs["JPM"]["memberships"][0]["active"]
     assert recs["O"]["stale"] is True and "p_ffo" in recs["O"]["metrics"]
 
@@ -297,3 +305,36 @@ def test_history_5y(monkeypatch):
     assert o["pe_hist"].v == pytest.approx(exp_pe, abs=0.01) and "EPS rettificato" in o["pe_hist"].why
     assert o["ev_ebitda_hist"].v == pytest.approx(10.5, abs=0.01)   # (40×100M + 500M − 300M) / 400M
     assert o["ebitda_margin"].v is not None
+
+
+# ------------------------------------------------------------------ ricerca e analisi dalla dashboard
+def test_analizza_preview_and_add(tmp_path, monkeypatch):
+    import json
+    import yfinance
+    from screener import analizza
+
+    class S:
+        def __init__(self, q, **k):
+            self.quotes = [{"symbol": "RMS.PA", "longname": "Hermès International", "exchDisp": "Paris", "quoteType": "EQUITY"},
+                           {"symbol": "HESAY", "shortname": "Hermes ADR", "exchDisp": "OTC", "quoteType": "EQUITY"}]
+    monkeypatch.setattr(yfinance, "Search", S)
+    sym, cands = analizza.resolve("Hermes")
+    assert sym == "RMS.PA" and len(cands) == 2
+    assert analizza.resolve("hesay")[0] == "HESAY"      # ticker scritto esatto
+
+    latest = tmp_path / "latest.json"
+    latest.write_text(json.dumps({"generated": "x", "macro": {"rf": {"v": 4.0}, "erp": {"v": 5.0}}, "finviz_elite": False,
+                                  "criteria": CFG["criteria"], "groups": CFG["groups"], "peer_medians": {}, "records": []}))
+    monkeypatch.setattr(run, "LATEST_JSON", latest)
+    monkeypatch.setattr(run, "DOCS_DIR", tmp_path)
+    monkeypatch.setattr(analizza, "PREVIEW_DIR", tmp_path / "previews")
+    monkeypatch.setattr(run.yh, "fetch", lambda t: fake(t, "Consumer Cyclical", "Luxury Goods"))
+    analizza.main(["preview", "--request-id", "r1", "--payload", "Hermes"])
+    pv = json.loads((tmp_path / "previews" / "r1.json").read_text())
+    rec = pv["results"][0]["record"]
+    assert pv["results"][0]["status"] == "ok" and rec["ticker"] == "RMS.PA" and rec["memberships"] == []
+    assert rec["metrics"]["roic"]["label"]                 # giudizi già applicati nell'anteprima
+
+    analizza.main(["add", "--payload", "RMS.PA:watchlist"])
+    data = json.loads(latest.read_text())
+    assert [r["ticker"] for r in data["records"]] == ["RMS.PA"] and (tmp_path / "index.html").exists()

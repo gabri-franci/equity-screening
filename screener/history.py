@@ -58,6 +58,9 @@ def _d(s: str) -> date:
 class FiscalHistory:
     def __init__(self, ticker: str, y: YahooData, tax_default: float, tax_clip: tuple[float, float]):
         self.t = ticker
+        info = y.info or {}
+        self.cur = info.get("currency") or "USD"
+        self.fin_cur = info.get("financialCurrency") or self.cur
         self.y = y
         self.cik = sec.cik_str(ticker)
         self.tax_default = tax_default
@@ -185,12 +188,20 @@ class FiscalHistory:
 
         start_end = next((k for k in ends if abs((_d(k) - target).days) <= 20), None)
         a, b = value(e0), value(start_end) if start_end else None
+        years = YEARS
+        if a and not b:
+            # meno di 5 anni di bilanci (es. società non USA: Yahoo dà 4 esercizi): si usa il periodo disponibile
+            avail = [k for k in ends if value(k)]
+            oldest = avail[-1] if avail else None
+            years = round((_d(e0) - _d(oldest)).days / 365.25) if oldest else 0
+            if years >= 3:
+                start_end, b = oldest, value(oldest)
         if not a or not b:
             n = len([k for k in ends if value(k)])
             return missing(f"servono 6 esercizi di bilancio (anno di partenza + 5 anni): disponibili {n}")
         base = Datum(src="Bilanci annuali (calcolato)", deduced=True,
-                     definition=f"CAGR 5 anni = ({label} {e0[:4]} / {label} {start_end[:4]})^(1/5) − 1",
-                     docs=[b["doc"], a["doc"]])
+                     definition=f"CAGR {years} anni = ({label} {e0[:4]} / {label} {start_end[:4]})^(1/{years}) − 1",
+                     docs=[b["doc"], a["doc"]], period_years=years if years < YEARS else 0)
         fmt = (lambda x: f"{x:,.2f}") if key == "eps" else fmt_money
         txt = f"{label} esercizio chiuso il {start_end}: {fmt(b['v'])} ({b['src']}) → esercizio chiuso il {e0}: {fmt(a['v'])} ({a['src']})"
         if key == "eps" and (a.get("adj", 1) != 1 or b.get("adj", 1) != 1):
@@ -198,9 +209,12 @@ class FiscalHistory:
         if b["v"] <= 0 or a["v"] <= 0:
             base.note = f"non calcolabile: valore iniziale o finale ≤ 0 — {txt}"
             return base
-        g = (a["v"] / b["v"]) ** (1 / YEARS) - 1
+        g = (a["v"] / b["v"]) ** (1 / years) - 1
         base.v = round(g * 100, 2)
         base.why = f"{txt}; CAGR = {base.v}%"
+        if years < YEARS:
+            base.why += (f". ATTENZIONE: disponibili solo {years} anni di bilanci invece di 5, quindi il CAGR è su {years} anni "
+                         f"e non riceve il giudizio Buono/Molto buono (le soglie valgono per 5 anni)")
         return base
 
     def roic_avg5(self) -> Datum:
@@ -241,7 +255,15 @@ class FiscalHistory:
             docs.append(ni["doc"])
         return self._avg(vals, rows, docs, "ROE medio 5 anni = media dei ROE annuali; ROE = Utile netto / Patrimonio netto a fine esercizio")
 
+    def fx_note(self) -> Datum | None:
+        if self.fin_cur != self.cur:
+            return missing(f"non calcolabile: il prezzo è in {self.cur} e i bilanci in {self.fin_cur}, "
+                           f"il rapporto non sarebbe coerente")
+        return None
+
     def pe_hist(self) -> Datum:
+        if self.fx_note():
+            return self.fx_note()
         rows, docs, vals = [], [], []
         for end in self.last_years():
             eps, px = self.at("eps", end), self.price_at(end)
@@ -261,6 +283,8 @@ class FiscalHistory:
                          "P/E = prezzo di chiusura a fine esercizio / EPS diluito dell'esercizio", unit="x")
 
     def ev_ebitda_hist(self) -> Datum:
+        if self.fx_note():
+            return self.fx_note()
         rows, docs, vals = [], [], []
         has_debt_data = bool(self.series("debt"))
         for end in self.last_years():
@@ -305,6 +329,9 @@ class FiscalHistory:
             return Datum(src="Bilanci annuali (calcolato)", deduced=True, definition=definition, docs=uniq,
                          why="; ".join(rows), note=f"non calcolabile: servono almeno 3 esercizi validi su 5, disponibili {len(vals)}")
         v = sum(vals) / len(vals)
+        why = "; ".join(rows) + f". Media di {len(vals)} esercizi = {v:.2f}{'%' if unit == 'pct' else 'x'}"
+        if len(vals) < YEARS:
+            why += (f". ATTENZIONE: media su {len(vals)} esercizi invece di 5, quindi senza giudizio Buono/Molto buono")
         return Datum(v=round(v, 2), src="Bilanci annuali (calcolato)", deduced=True, definition=definition,
-                     why="; ".join(rows) + f". Media di {len(vals)} esercizi = {v:.2f}{'%' if unit == 'pct' else 'x'}",
-                     docs=uniq, series=[round(x, 2) for x in reversed(vals)])
+                     why=why, docs=uniq, series=[round(x, 2) for x in reversed(vals)],
+                     period_years=len(vals) if len(vals) < YEARS else 0)

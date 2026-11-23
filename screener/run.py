@@ -26,6 +26,7 @@ from .sources import yahoo as yh
 log = logging.getLogger("screener")
 LATEST_JSON = DOCS_DIR / "data" / "latest.json"
 WATCHLIST_JSON = ROOT / "watchlist" / "watchlist.json"
+DA_VALUTARE_JSON = ROOT / "watchlist" / "da_valutare.json"
 REPO = os.environ.get("GITHUB_REPOSITORY") or "gabri-franci/equity-screening"
 HISTORY_DIR = DATA_DIR / "history"
 
@@ -57,6 +58,10 @@ def build_universe(mem: pd.DataFrame, cfg: dict, only: list[str] | None) -> dict
         if m is None or (active and not m["active"]):
             u["memberships"][r.index] = {"index": r.index, "active": active, "first_seen": r.first_seen,
                                          "removed_on": r.removed_on}
+    # titoli delle liste personali (Watchlist, Titoli da valutare) anche se fuori dai due indici
+    for t in load_list(WATCHLIST_JSON) + load_list(DA_VALUTARE_JSON):
+        t = dual.get(t, t)
+        uni.setdefault(t, {"ticker": t, "name": t, "gics_sector": "", "memberships": {}, "secondary": set()})
     if only:
         uni = {k: v for k, v in uni.items() if k in only}
     return uni
@@ -102,6 +107,8 @@ def evaluate(u: dict, fv_all: dict, macro_d: dict, cfg: dict, prev: dict, today:
         "industry": industry, "group": group, "group_name": cfg["groups"].get(group, {}).get("name", group),
         "tech_ai": group == "tech_ai", "cik": sec.cik_str(t),
         "price": info.get("currentPrice") or info.get("regularMarketPrice"), "currency": info.get("currency", "USD"),
+        "fin_currency": info.get("financialCurrency") or info.get("currency", "USD"),
+        "exchange": info.get("fullExchangeName") or info.get("exchange", ""), "country": info.get("country", ""),
         "quote": price_block(y),
         "news": y.news, "news_updated": today,
         "market_cap": info.get("marketCap"),
@@ -139,16 +146,21 @@ def save_history(records: list[dict], today: str) -> None:
         pd.DataFrame(rows).to_csv(f, index=False)
 
 
-def load_watchlist() -> list[str]:
+def load_list(path) -> list[str]:
     try:
-        return sorted(set(json.loads(WATCHLIST_JSON.read_text("utf-8")).get("tickers", [])))
+        return sorted(set(json.loads(path.read_text("utf-8")).get("tickers", [])))
     except Exception:
         return []
+
+
+def load_watchlist() -> list[str]:
+    return load_list(WATCHLIST_JSON)
 
 
 def write_outputs(out: dict) -> None:
     """Scrive latest.json, Excel e dashboard (usato sia dal giro settimanale sia da quello giornaliero)."""
     out["watchlist"] = load_watchlist()
+    out["da_valutare"] = load_list(DA_VALUTARE_JSON)
     out["repo"] = REPO
     LATEST_JSON.parent.mkdir(parents=True, exist_ok=True)
     LATEST_JSON.write_text(json.dumps(out, ensure_ascii=False, default=str), "utf-8")

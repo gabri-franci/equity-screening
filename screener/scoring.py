@@ -56,7 +56,7 @@ def rate(metric: str, datum: dict, group: str, cfg: dict, metrics: dict | None =
     if "trend" in crit:
         out["label"] = roic_trend(datum.get("series", []), crit["trend"])
         return out
-    if "levels" in crit:
+    if "levels" in crit and not (0 < (datum.get("period_years") or 0) < 5):
         out["label"] = match_level(v, crit["levels"])
     if "band" in crit:
         band = cfg["groups"].get(group, {}).get(crit["band"])

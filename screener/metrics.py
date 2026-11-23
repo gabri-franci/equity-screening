@@ -174,6 +174,9 @@ class Engine:
         rf, erp = self.macro.get("rf"), self.macro.get("erp")
         beta = _f(self.info.get("beta"))
         mcap = _f(self.info.get("marketCap"))
+        fin_cur = self.info.get("financialCurrency") or self.info.get("currency")
+        if fin_cur and self.info.get("currency") and fin_cur != self.info.get("currency"):
+            return missing(f"WACC non calcolabile: capitalizzazione in {self.info.get('currency')} e bilanci in {fin_cur}")
         if rf is None or rf.v is None or beta is None or mcap is None:
             return missing("WACC non calcolabile: manca " + ", ".join(
                 n for n, x in (("tasso risk free", rf and rf.v), ("beta", beta), ("capitalizzazione", mcap)) if x is None))

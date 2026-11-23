@@ -17,7 +17,8 @@ HEAD_FILL = PatternFill("solid", fgColor="1F3864")
 def _status(r: dict, market: str) -> str:
     m = next((x for x in r["memberships"] if x["index"] == market), None)
     if not m:
-        return ""
+        idx = [x["index"] for x in r["memberships"] if x["active"]]
+        return " · ".join(idx) if idx else "Fuori indice" + (f" ({r.get('exchange')})" if r.get("exchange") else "")
     return "In indice" if m["active"] else f"Uscito il {m['removed_on']}"
 
 
@@ -38,21 +39,23 @@ def write(data: dict, path) -> None:
     metrics = [m for m in crit]
     wb = Workbook()
     wb.remove(wb.active)
-    for market in MARKETS:
+    wl, dv = set(data.get("watchlist", [])), set(data.get("da_valutare", []))
+    sheets = [(m, lambda r, m=m: any(x["index"] == m for x in r["memberships"])) for m in MARKETS]
+    sheets += [("WATCHLIST", lambda r: r["ticker"] in wl), ("TITOLI DA VALUTARE", lambda r: r["ticker"] in dv)]
+    for market, keep in sheets:
         ws = wb.create_sheet(market)
-        wl = set(data.get("watchlist", []))
         cols = ["Settore", "Ticker", "Watchlist", "Nome", "Gruppo valutazione", "Stato", "Anche in", "Altre classi", "Aggiornato",
-                "Prezzo", "Valuta", "Data prezzo"] + [f"Var. {p} %" for p in PRICE_CHG]
+                "Prezzo", "Valuta", "Data prezzo", "Valuta bilanci"] + [f"Var. {p} %" for p in PRICE_CHG]
         for m in metrics:
             cols += [crit[m]["name"], "Giudizio"]
         _header(ws, cols)
-        recs = [r for r in data["records"] if any(x["index"] == market for x in r["memberships"])]
+        recs = [r for r in data["records"] if keep(r)]
         for r in sorted(recs, key=lambda r: (r["sector_it"], r["ticker"])):
             row = [r["sector_it"], r["ticker"], "★" if r["ticker"] in wl else "", r["name"], r["group_name"], _status(r, market), _other(r, market),
                    ", ".join(r.get("secondary", [])),
                    r["updated"] + (" (dati non aggiornati)" if r.get("stale") else "")]
             q = r.get("quote") or {}
-            row += [q.get("price"), q.get("currency", ""), q.get("date", "")]
+            row += [q.get("price"), q.get("currency", ""), q.get("date", ""), r.get("fin_currency", "")]
             row += [(q.get("changes") or {}).get(p) for p in PRICE_CHG]
             for m in metrics:
                 d = r["metrics"].get(m)
@@ -62,7 +65,10 @@ def write(data: dict, path) -> None:
                     row += ["n.c.", d.get("note", "")]
                 else:
                     v = d["v"]
-                    row += ["Sì" if v is True else "No" if v is False else v, d.get("label", "")]
+                    lab = d.get("label", "")
+                    if d.get("period_years"):
+                        lab = (lab + " " if lab else "") + f"(su {d['period_years']} anni)"
+                    row += ["Sì" if v is True else "No" if v is False else v, lab]
             ws.append(row)
             for i, m in enumerate(metrics):
                 cell = ws.cell(row=ws.max_row, column=len(cols) - 2 * len(metrics) + 2 * i + 2)

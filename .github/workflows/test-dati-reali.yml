@@ -23,6 +23,10 @@ jobs:
       - name: Screening su un campione
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
-        run: python -m screener.run --tickers AAPL,MSFT,GOOGL,AMZN,NVDA,JPM,BRK-B,V,ALL,PFE,ISRG,XOM,O,AMT,T,CAT,PG,NEE,LIN,TSLA
+        run: python -m screener.run --tickers AAPL,NVDA,JPM,MC.PA,NOVO-B.CO,DOL.TO,CSU.TO,ISP.MI,UNI.MI,TSM,DCI,HEI,MEDP,CPRT
       - name: Riepilogo
         run: python -m screener.summary
+      - name: Prova ricerca per nome
+        run: |
+          python -m screener.analizza preview --request-id prova --payload "Hermes|ASML|Ferrari"
+          python -c "import json; d=json.load(open('previews/prova.json')); [print(r['query'], '->', r.get('symbol'), r['status'], (r.get('record') or {}).get('name'), [c['symbol'] for c in r['candidates']]) for r in d['results']]"

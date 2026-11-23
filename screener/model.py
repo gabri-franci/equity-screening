@@ -15,6 +15,7 @@ class Datum:
     docs: list = field(default_factory=list)   # documenti di origine [{"label":..., "url":...}]
     note: str = ""                # es. "non calcolabile: EBITDA negativo"
     series: list = field(default_factory=list)  # serie storica, es. ROIC per esercizio
+    period_years: int = 0         # >0 se calcolato su meno anni del previsto (es. 4 invece di 5): niente giudizio
 
     @property
     def ok(self) -> bool:
@@ -22,7 +23,7 @@ class Datum:
 
     def to_dict(self) -> dict:
         d = asdict(self)
-        return {k: val for k, val in d.items() if val not in ("", [], None, False) or k == "v"}
+        return {k: val for k, val in d.items() if val not in ("", [], None, False, 0) or k == "v"}
 
 
 def missing(note: str, src: str = "") -> Datum:

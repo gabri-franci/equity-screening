@@ -119,6 +119,21 @@ th,td{vertical-align:top}
 .chart .hair{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 .chart .dot{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);white-space:nowrap;display:none}
+.ptag{display:inline-block;font-size:10px;font-weight:600;color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 3px;margin-left:3px;vertical-align:1px}
+.cur{color:var(--muted);font-size:11px;margin-left:2px}
+.acts2{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.acts2 button{font-size:12px;padding:4px 8px}
+.btn2.on{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+#andlg{max-width:760px}
+.qchips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.qchip{background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:2px 4px 2px 10px;font-size:13px;display:flex;align-items:center;gap:4px}
+.qchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px}
+.res{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:8px}
+.res .top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.res .kpis{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:4px}
+.res .kpis b{color:var(--text)}
+.alt{font-size:12px;color:var(--muted);margin-top:4px}
+.alt button{border:0;background:none;color:var(--accent);cursor:pointer;font:inherit;font-size:12px;padding:0 2px;text-decoration:underline}
 footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
 @media (max-width:640px){header{padding:12px 16px 0}main{padding:12px 16px}.nm{display:none}input[type=search]{flex-basis:100%}table{min-width:900px}}
 </style>
@@ -131,8 +146,8 @@ footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
     <div class="tabs" id="tabs"></div>
     <input type="search" id="q" placeholder="Cerca ticker o nome…">
     <label class="chk"><input type="checkbox" id="techai"> Solo Tech &amp; AI</label>
-    <label class="chk"><input type="checkbox" id="onlywl"> Solo watchlist ★ <span id="wlcount"></span></label>
     <label class="chk"><input type="checkbox" id="exited" checked> Mostra usciti dall'indice</label>
+    <button class="btn2" id="anopen" type="button">🔎 Cerca e analizza titoli</button>
     <button class="btn2" id="wlsetup" type="button">Collega watchlist</button>
     <a class="btn" href="screening.xlsx" download>Scarica Excel</a>
   </div>
@@ -140,16 +155,26 @@ footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
 </div></header>
 <dialog id="wldlg">
   <h3 style="margin-top:0">Collega la watchlist</h3>
-  <p style="font-size:13px">La watchlist è salvata nel repository GitHub ed è la stessa su tutti i dispositivi. Per modificarla da questo dispositivo incolla la tua chiave personale GitHub. Si fa una volta per dispositivo e la chiave resta salvata solo in questo browser.</p>
+  <p style="font-size:13px">Watchlist e "Titoli da valutare" sono salvati nel repository GitHub e sono uguali su tutti i dispositivi. Per modificarli e per analizzare titoli nuovi da questo dispositivo incolla la tua chiave personale GitHub. Si fa una volta per dispositivo e la chiave resta salvata solo in questo browser.</p>
   <ol>
     <li>Apri <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
-    <li>Nome a piacere, scadenza 1 anno; <b>Repository access</b>: "Only select repositories" → <b id="dlgrepo"></b></li>
-    <li><b>Permissions</b> → Repository permissions → <b>Contents: Read and write</b></li>
-    <li>Genera la chiave, copiala e incollala qui sotto</li>
+    <li>Nome a piacere; <b>Expiration</b>: "Custom" con una data tra un anno</li>
+    <li><b>Repository access</b>: "Only select repositories" → <b id="dlgrepo"></b></li>
+    <li><b>Permissions</b> → pulsante <b>+ Add permissions</b> → cerca e spunta <b>Contents</b> e <b>Actions</b>; per entrambi scegli <b>Read and write</b></li>
+    <li><b>Generate token</b>, copia la chiave e incollala qui sotto</li>
   </ol>
   <input type="password" id="wltoken" placeholder="github_pat_…" autocomplete="off">
   <div id="wlstatus" style="font-size:12px;color:var(--muted)"></div>
   <div class="acts"><button class="btn2" id="wlforget" type="button">Scollega questo dispositivo</button><button class="btn2" id="wlcancel" type="button">Chiudi</button><button class="btn" id="wlsave" type="button">Salva</button></div>
+</dialog>
+<dialog id="andlg">
+  <h3 style="margin-top:0">Cerca e analizza titoli</h3>
+  <p style="font-size:13px;margin:0 0 6px">Scrivi un nome o un ticker (anche fuori da S&amp;P 500 e NASDAQ 100, es. "Hermes", "ASML", "DOL.TO") e premi Invio. Puoi metterne in fila più di uno, poi premi <b>Analizza</b>. I titoli già nei dati compaiono subito; per gli altri il calcolo richiede 1-3 minuti.</p>
+  <div style="display:flex;gap:6px"><input type="search" id="anq" placeholder="Nome o ticker…" autocomplete="off" style="flex:1;margin:0"><button class="btn2" id="anadd" type="button">Aggiungi</button></div>
+  <div class="qchips" id="anchips"></div>
+  <div class="acts"><button class="btn2" id="anclose" type="button">Chiudi</button><button class="btn" id="anrun" type="button">Analizza</button></div>
+  <div id="anstatus" style="font-size:13px;color:var(--muted);margin-top:8px"></div>
+  <div id="anres"></div>
 </dialog>
 <div id="toast" role="status"></div>
 <main><div class="wrap" id="list"></div></main>
@@ -160,6 +185,7 @@ footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
 const D = JSON.parse(document.getElementById('data').textContent);
 const C = D.criteria;
 const MARKETS = ['S&P 500','NASDAQ 100'];
+const TABS = ['S&P 500','NASDAQ 100','WATCHLIST','TITOLI DA VALUTARE'];
 const COLS = ['roic','roe','op_margin','fcf','fcf_margin','rev_cagr5','eps_cagr5','nd_ebitda','de','pe_ttm','pe_hist','ev_ebitda','ev_ebitda_hist'];
 const SHORT = {fcf:'FCF',roic:'ROIC',roe:'ROE',op_margin:'Op. M.',fcf_margin:'FCF M.',rev_cagr5:'Ricavi 5Y',eps_cagr5:'EPS 5Y',pe_hist:'P/E Storico',ev_ebitda_hist:'EV/EBITDA Storico',
   nd_ebitda:'ND/EBITDA',de:'D/E',pe_ttm:'P/E',ev_ebitda:'EV/EBITDA'};
@@ -168,21 +194,23 @@ let market = MARKETS[0];
 try{ market = localStorage.getItem('mkt') || market }catch(e){}
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function fmt(m, d){
+function fmt(m, d, cur){
   if(!d) return '<span class="na">n.a.</span>';
   if(d.v === null || d.v === undefined) return '<span class="na" title="'+esc(d.note)+'">n.c.</span>';
   const u = (C[m]||{}).unit;
   if(u==='bool') return '';
-  if(u==='money') return money(d.v);
+  const pt = d.period_years ? '<span class="ptag" title="Calcolato su '+d.period_years+' anni invece di 5: nessun giudizio">'+d.period_years+'A</span>' : '';
+  if(u==='money') return money(d.v, cur)+pt;
   const v = Number(d.v);
-  return u==='pct' ? v.toFixed(1)+'%' : v.toFixed(2)+'x';
+  return (u==='pct' ? v.toFixed(1)+'%' : v.toFixed(2)+'x')+pt;
 }
-function money(x){
+function money(x, cur){
   if(x===null||x===undefined) return 'n.d.';
+  const sym = ({USD:'$', EUR:'€', GBP:'£', CAD:'C$', JPY:'¥'})[cur||'USD'] || (cur||'');
   const v = Number(x), a = Math.abs(v);
-  if(a>=1e9) return (v/1e9).toFixed(2).replace('.',',')+' mld $';
-  if(a>=1e6) return (v/1e6).toFixed(1).replace('.',',')+' mln $';
-  return v.toFixed(0)+' $';
+  if(a>=1e9) return (v/1e9).toFixed(2).replace('.',',')+' mld '+sym;
+  if(a>=1e6) return (v/1e6).toFixed(1).replace('.',',')+' mln '+sym;
+  return v.toFixed(0)+' '+sym;
 }
 function pctChg(x){
   if(x===null||x===undefined) return '<span class="flat">n.d.</span>';
@@ -199,21 +227,23 @@ function priceCell(r){
   const q = r.quote||{};
   if(q.price===null||q.price===undefined) return '<td><span class="na">n.d.</span></td>';
   const c = (q.changes||{})['1G'];
-  return '<td><span class="px">'+Number(q.price).toFixed(2)+'</span>'+(c!==null&&c!==undefined?'<span class="chg">'+pctChg(c)+'</span>':'')+'</td>';
+  return '<td><span class="px">'+Number(q.price).toFixed(2)+'</span>'+((q.currency||'USD')!=='USD'?'<span class="cur">'+esc(q.currency)+'</span>':'')+(c!==null&&c!==undefined?'<span class="chg">'+pctChg(c)+'</span>':'')+'</td>';
 }
-function membership(r){ return r.memberships.find(x => x.index===market) }
+function membership(r){
+  if(market==='WATCHLIST') return WL.has(r.ticker) ? {active:true, list:true} : undefined;
+  if(market==='TITOLI DA VALUTARE') return DV.has(r.ticker) ? {active:true, list:true} : undefined;
+  return r.memberships.find(x => x.index===market);
+}
 function render(){
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.m===market));
   const q = document.getElementById('q').value.trim().toLowerCase();
   const onlyTech = document.getElementById('techai').checked;
   const showOut = document.getElementById('exited').checked;
-  const onlyWl = document.getElementById('onlywl').checked;
-  document.getElementById('wlcount').textContent = '('+WL.size+')';
+
   const recs = D.records.filter(r => {
     const m = membership(r); if(!m) return false;
     if(!m.active && !showOut) return false;
     if(onlyTech && !r.tech_ai) return false;
-    if(onlyWl && !WL.has(r.ticker)) return false;
     return !q || r.ticker.toLowerCase().includes(q) || (r.name||'').toLowerCase().includes(q);
   });
   const bySector = {};
@@ -221,17 +251,19 @@ function render(){
   const cg = colgroup();
   document.getElementById('colwrap').innerHTML = '<table>'+cg+'<tr><th class="l">Ticker</th><th class="l nm">Nome</th><th>Prezzo</th>' +
     COLS.map(c => '<th>'+SHORT[c]+'</th>').join('') + '</tr></table>';
-  let html = '';
+  let html = (market==='WATCHLIST' || market==='TITOLI DA VALUTARE') && !recs.length ?
+    '<p>Nessun titolo in questa lista: aggiungili con la ☆ o con "Cerca e analizza titoli".</p>' : '';
   Object.keys(bySector).sort().forEach(s => {
     const rows = bySector[s].sort((a,b) => a.ticker.localeCompare(b.ticker)).map(r => {
       const m = membership(r);
-      const other = r.memberships.filter(x => x.index!==market && x.active).map(x => x.index);
       let tags = '';
+      const other = r.memberships.filter(x => x.index!==market && x.active).map(x => x.index);
+      if(m.list && !other.length) tags += '<span class="tag">fuori indice'+(r.exchange?' · '+esc(r.exchange):'')+'</span>';
       if(other.length) tags += '<span class="tag">anche in '+esc(other.join(', '))+'</span>';
       if(!m.active) tags += '<span class="tag out">uscito il '+esc(m.removed_on)+'</span>';
       if(r.stale) tags += '<span class="tag stale">dati al '+esc(r.stale_since||r.updated)+'</span>';
       return '<tr class="row" data-t="'+esc(r.ticker)+'"><td class="l tk">'+starBtn(r.ticker)+esc(r.ticker)+tags+'</td><td class="l nm">'+esc(r.name)+'</td>' + priceCell(r) +
-        COLS.map(c => { const d = r.metrics[c]; return '<td>'+fmt(c,d)+(d?chip(d.label):'')+'</td>' }).join('') + '</tr>';
+        COLS.map(c => { const d = r.metrics[c]; return '<td>'+fmt(c,d,r.fin_currency)+(d?chip(d.label):'')+'</td>' }).join('') + '</tr>';
     }).join('');
     html += '<details class="sector" open><summary>'+esc(s)+'<span class="n">'+bySector[s].length+' titoli</span></summary><div class="tbl"><table>'+cg+rows+'</table></div></details>';
   });
@@ -257,13 +289,14 @@ function syncScroll(){
   head.scrollLeft = boxes.length ? boxes[0].scrollLeft : 0;
 }
 function openPanel(t){
-  const r = D.records.find(x => x.ticker===t);
+  const r = D.records.find(x => x.ticker===t) || PREVIEWS[t];
+  if(!r) return;
   const other = r.memberships.map(x => x.index + (x.active ? '' : ' (uscito il '+x.removed_on+')')).join(' · ');
   document.getElementById('ph').innerHTML = '<h2>'+starBtn(r.ticker)+esc(r.ticker)+' — '+esc(r.name)+'</h2><div class="meta">'+
     esc(r.sector_it)+' · '+esc(r.industry||'')+' · fasce: '+esc(r.group_name)+'<br>'+esc(other)+
     (r.secondary&&r.secondary.length?' · altre classi: '+esc(r.secondary.join(', ')):'')+
     '<br>Settore da: '+esc(r.sector_src)+' · aggiornato '+esc(r.updated)+(r.stale?' (dati non aggiornati)':'')+'</div>';
-  let html = quoteHtml(r) + newsHtml(r);
+  let html = listButtons(r.ticker) + quoteHtml(r) + newsHtml(r);
   AREAS.forEach(a => {
     const ms = Object.keys(C).filter(m => C[m].area===a && r.metrics[m]);
     if(!ms.length) return;
@@ -273,7 +306,7 @@ function openPanel(t){
       let sub = [];
       if(d.src) sub.push('Fonte: '+esc(d.src));
       if(d.definition && !d.deduced) sub.push(esc(d.definition));
-      if(d.peer) sub.push('Mediana settore ('+esc(r.group_name)+', '+d.peer.n+' titoli): '+fmt(m,{v:d.peer.median}));
+      if(d.peer) sub.push('Mediana settore ('+esc(r.group_name)+', '+d.peer.n+' titoli): '+fmt(m,{v:d.peer.median},'USD'));
       if(d.band) sub.push('Fascia '+esc(d.band.group)+': '+d.band.min+'x – '+d.band.max+'x ('+(d.band.origin==='documento'?'dal documento':'proposta')+')');
       if(d.v===null && d.note) sub.push('<b>'+esc(d.note)+'</b>');
       else if(d.note) sub.push(esc(d.note));
@@ -288,13 +321,14 @@ function openPanel(t){
       if(d.band && d.band.origin!=='documento' && d.band.why){
         box += '<div class="ded"><b>Fascia di settore dedotta</b>'+esc(d.band.why)+'</div>';
       }
-      html += '<div class="m"><div class="top"><span>'+esc(c.name)+'</span><span class="val">'+fmt(m,d)+chip(d.label)+'</span></div>'+
+      html += '<div class="m"><div class="top"><span>'+esc(c.name)+'</span><span class="val">'+fmt(m,d,r.fin_currency)+chip(d.label)+'</span></div>'+
         (c.help?'<div class="sub">'+esc(c.help)+'</div>':'')+'<div class="sub">'+sub.join('<br>')+'</div>'+box+'</div>';
     });
   });
   document.getElementById('pb').innerHTML = html;
   drawChart(r, '1A');
   bindStars(document.getElementById('ph'));
+  bindLists(document.getElementById('pb'));
   const p = document.getElementById('panel'); p.classList.add('open'); p.setAttribute('aria-hidden','false');
 }
 const RANGES = [['1M',30,'daily'],['3M',91,'daily'],['6M',182,'weekly'],['YTD','ytd','weekly'],['1A',365,'weekly'],['3A',1095,'weekly'],['5A',1826,'weekly']];
@@ -379,61 +413,181 @@ function fmtNewsDate(s){
   if(isNaN(d)) return s;
   return d.toLocaleString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
 }
-/* ---------- watchlist condivisa: file watchlist/watchlist.json nel repository GitHub ---------- */
+/* ---------- liste condivise: file nel repository GitHub (watchlist e titoli da valutare) ---------- */
 const REPO = D.repo || 'gabri-franci/equity-screening';
-const WL_PATH = 'watchlist/watchlist.json';
 const WL = new Set(D.watchlist||[]);
+const DV = new Set(D.da_valutare||[]);
+const LISTS = {
+  wl: {path:'watchlist/watchlist.json', set:WL, name:'Watchlist'},
+  dv: {path:'watchlist/da_valutare.json', set:DV, name:'Titoli da valutare'},
+};
 const TOKEN_KEY = 'wl_token';
 let token = ''; try{ token = localStorage.getItem(TOKEN_KEY) || '' }catch(e){}
 function starBtn(t){ const on = WL.has(t); const lbl = (on?'Togli dalla':'Aggiungi alla')+' watchlist';
   return '<button class="star'+(on?' on':'')+'" data-star="'+esc(t)+'" title="'+lbl+'" aria-label="'+lbl+'" aria-pressed="'+on+'">'+(on?'★':'☆')+'</button>' }
-function bindStars(root){ root.querySelectorAll('[data-star]').forEach(b => b.onclick = ev => { ev.stopPropagation(); toggleStar(b.dataset.star) }) }
-function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3500) }
+function listButtons(t){
+  return '<div class="acts2">'+Object.entries(LISTS).map(([k,L]) => { const on = L.set.has(t);
+    return '<button class="btn2'+(on?' on':'')+'" data-list="'+k+'" data-t="'+esc(t)+'">'+(on?'✓ In ':'＋ Aggiungi a ')+L.name+'</button>' }).join('')+'</div>';
+}
+function bindStars(root){ root.querySelectorAll('[data-star]').forEach(b => b.onclick = ev => { ev.stopPropagation(); toggleList('wl', b.dataset.star) }) }
+function bindLists(root){ root.querySelectorAll('[data-list]').forEach(b => b.onclick = ev => { ev.stopPropagation(); toggleList(b.dataset.list, b.dataset.t) }) }
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 4500) }
+function updTabs(){
+  document.querySelectorAll('#tabs button').forEach(b => {
+    const n = b.dataset.m==='WATCHLIST' ? WL.size : b.dataset.m==='TITOLI DA VALUTARE' ? DV.size : null;
+    b.textContent = b.dataset.m + (n!==null ? ' ('+n+')' : '');
+  });
+}
 function refreshStars(){
   document.querySelectorAll('[data-star]').forEach(b => { const on = WL.has(b.dataset.star); b.classList.toggle('on', on); b.textContent = on?'★':'☆'; b.setAttribute('aria-pressed', on) });
-  document.getElementById('wlcount').textContent = '('+WL.size+')';
+  document.querySelectorAll('[data-list]').forEach(b => { const L = LISTS[b.dataset.list], on = L.set.has(b.dataset.t);
+    b.classList.toggle('on', on); b.textContent = (on?'✓ In ':'＋ Aggiungi a ')+L.name });
+  updTabs();
 }
 const b64e = s => { const u = new TextEncoder().encode(s); let b = ''; u.forEach(c => b += String.fromCharCode(c)); return btoa(b) };
 const b64d = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')), c => c.charCodeAt(0)));
-async function ghGet(){
-  const h = {'Accept':'application/vnd.github+json'}; if(token) h.Authorization = 'Bearer '+token;
-  const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+WL_PATH+'?ref=main&t='+Date.now(), {headers:h, cache:'no-store'});
+function ghHeaders(json){ const h = {'Accept':'application/vnd.github+json'}; if(token) h.Authorization = 'Bearer '+token; if(json) h['Content-Type'] = 'application/json'; return h }
+async function ghGet(path){
+  const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+path+'?ref=main&t='+Date.now(), {headers:ghHeaders(), cache:'no-store'});
+  if(r.status===404) return {sha:null, data:{tickers:[]}};
   if(!r.ok) throw new Error('errore '+r.status);
   const j = await r.json();
   return {sha: j.sha, data: JSON.parse(b64d(j.content))};
 }
-async function loadWatchlist(){
-  try{
-    const {data} = await ghGet();
-    WL.clear(); (data.tickers||[]).forEach(t => WL.add(t)); refreshStars();
-    if(document.getElementById('onlywl').checked) render();
-  }catch(e){ /* resta la watchlist salvata insieme alla pagina */ }
+async function loadLists(){
+  for(const L of Object.values(LISTS)){
+    try{ const {data} = await ghGet(L.path); L.set.clear(); (data.tickers||[]).forEach(t => L.set.add(t)) }catch(e){ /* resta la lista salvata con la pagina */ }
+  }
+  refreshStars();
+  if(market==='WATCHLIST' || market==='TITOLI DA VALUTARE') render();
 }
 let saving = Promise.resolve();
-function toggleStar(t){
-  if(!token){ openDlg('Per modificare la watchlist collega prima questo dispositivo.'); return }
-  const add = !WL.has(t);
-  add ? WL.add(t) : WL.delete(t); refreshStars();
-  saving = saving.then(() => saveStar(t, add)).catch(() => {});
+function needToken(){ if(!token){ openDlg('Per modificare le liste e analizzare titoli collega prima questo dispositivo.'); return true } return false }
+function toggleList(k, t, force){
+  if(needToken()) return;
+  const L = LISTS[k], add = force===undefined ? !L.set.has(t) : force;
+  if(add === L.set.has(t)) return;
+  add ? L.set.add(t) : L.set.delete(t); refreshStars();
+  if(market==='WATCHLIST' || market==='TITOLI DA VALUTARE') render();
+  saving = saving.then(() => saveList(k, t, add)).catch(() => {});
 }
-async function saveStar(t, add, attempt=0){
+async function saveList(k, t, add, attempt=0){
+  const L = LISTS[k];
   try{
-    const {sha, data} = await ghGet();
+    const {sha, data} = await ghGet(L.path);
     const set = new Set(data.tickers||[]); add ? set.add(t) : set.delete(t);
-    const body = {message: 'Watchlist: '+(add?'aggiunto ':'tolto ')+t, branch: 'main', sha,
+    const body = {message: L.name+': '+(add?'aggiunto ':'tolto ')+t, branch: 'main',
       content: b64e(JSON.stringify({tickers:[...set].sort(), updated:new Date().toISOString()}, null, 2)+'\n')};
-    const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+WL_PATH, {method:'PUT',
-      headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify(body)});
-    if((r.status===409 || r.status===422) && attempt<2) return saveStar(t, add, attempt+1);
+    if(sha) body.sha = sha;
+    const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/'+L.path, {method:'PUT', headers:ghHeaders(true), body: JSON.stringify(body)});
+    if((r.status===409 || r.status===422) && attempt<2) return saveList(k, t, add, attempt+1);
     if(r.status===401 || r.status===403 || r.status===404) throw new Error('chiave non valida o senza permesso di scrittura');
     if(!r.ok) throw new Error('errore '+r.status);
-    WL.clear(); set.forEach(x => WL.add(x)); refreshStars();
-    toast((add?'Aggiunto ':'Tolto ')+t+(add?' alla':' dalla')+' watchlist');
+    L.set.clear(); set.forEach(x => L.set.add(x)); refreshStars();
+    toast((add?'Aggiunto ':'Tolto ')+t+(add?' a ':' da ')+L.name);
   }catch(e){
-    add ? WL.delete(t) : WL.add(t); refreshStars();
-    toast('Watchlist non salvata: '+e.message);
+    add ? L.set.delete(t) : L.set.add(t); refreshStars();
+    toast(L.name+' non salvata: '+e.message);
   }
 }
+/* ---------- cerca e analizza titoli ---------- */
+const andlg = document.getElementById('andlg');
+let queue = [], polling = null;
+const PREVIEWS = {};   // simbolo -> record calcolato in anteprima
+function renderChips(){
+  document.getElementById('anchips').innerHTML = queue.map((q,i) => '<span class="qchip">'+esc(q)+'<button data-qi="'+i+'" aria-label="Togli '+esc(q)+'">×</button></span>').join('');
+  document.querySelectorAll('[data-qi]').forEach(b => b.onclick = () => { queue.splice(+b.dataset.qi,1); renderChips() });
+  document.getElementById('anrun').textContent = 'Analizza'+(queue.length?' ('+queue.length+')':'');
+}
+function addQuery(){
+  const inp = document.getElementById('anq'), v = inp.value.trim();
+  if(v && !queue.some(q => q.toLowerCase()===v.toLowerCase())) queue.push(v);
+  inp.value = ''; renderChips(); inp.focus();
+}
+function findLocal(q){
+  const u = q.trim().toUpperCase();
+  const exact = D.records.find(r => r.ticker.toUpperCase()===u);
+  if(exact) return exact;
+  const byName = D.records.filter(r => (r.name||'').toUpperCase().includes(u));
+  return byName.length===1 ? byName[0] : null;
+}
+function kpi(r, m, lbl){ const d = r.metrics[m]; return d ? '<span>'+lbl+' <b>'+fmt(m,d,r.fin_currency)+'</b></span>' : '' }
+function resultHtml(item){
+  if(item.status==='not_found') return '<div class="res"><b>'+esc(item.query)+'</b>: nessun titolo trovato.</div>';
+  if(item.status==='error') return '<div class="res"><b>'+esc(item.query)+'</b> ('+esc(item.symbol)+'): errore nel calcolo ('+esc(item.error||'')+').</div>';
+  const r = item.record, q = r.quote||{};
+  const idx = r.memberships.filter(x => x.active).map(x => x.index).join(' · ') || 'fuori indice';
+  let h = '<div class="res"><div class="top"><span><b>'+esc(r.ticker)+'</b> — '+esc(r.name)+'</span><span class="sub" style="color:var(--muted);font-size:12px">'+
+    [r.sector_it, r.exchange, idx].filter(Boolean).map(esc).join(' · ')+'</span></div>'+
+    '<div class="kpis"><span>Prezzo <b>'+(q.price!=null?Number(q.price).toFixed(2)+' '+esc(q.currency||''):'n.d.')+'</b></span>'+
+    kpi(r,'roic','ROIC')+kpi(r,'roe','ROE')+kpi(r,'op_margin','Op. M.')+kpi(r,'rev_cagr5','Ricavi 5Y')+kpi(r,'pe_ttm','P/E')+kpi(r,'pe_hist','P/E stor.')+'</div>'+
+    '<div class="acts2"><button class="btn2" data-open="'+esc(r.ticker)+'">Dettaglio completo</button>'+
+    Object.entries(LISTS).map(([k,L]) => '<button class="btn2'+(L.set.has(r.ticker)?' on':'')+'" data-addto="'+k+'" data-t="'+esc(r.ticker)+'">'+(L.set.has(r.ticker)?'✓ In ':'＋ ')+L.name+'</button>').join('')+'</div>';
+  const alts = (item.candidates||[]).filter(c => c.symbol!==r.ticker).slice(0,4);
+  if(alts.length) h += '<div class="alt">Non è questo? Altri risultati: '+alts.map(c => '<button data-alt="'+esc(c.symbol)+'">'+esc(c.symbol)+' ('+esc(c.name)+', '+esc(c.exchange)+')</button>').join(' ')+'</div>';
+  return h+'</div>';
+}
+function showResults(items){
+  const box = document.getElementById('anres');
+  box.innerHTML = items.map(resultHtml).join('');
+  box.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { andlg.close(); openPanel(b.dataset.open) });
+  box.querySelectorAll('[data-alt]').forEach(b => b.onclick = () => { queue = [b.dataset.alt]; renderChips(); runAnalysis() });
+  box.querySelectorAll('[data-addto]').forEach(b => b.onclick = () => addFromPreview(b.dataset.addto, b.dataset.t, b));
+}
+async function dispatch(mode, payload, rid){
+  const r = await fetch('https://api.github.com/repos/'+REPO+'/actions/workflows/analizza.yml/dispatches', {method:'POST', headers:ghHeaders(true),
+    body: JSON.stringify({ref:'main', inputs:{mode, payload, request_id:rid}})});
+  if(r.status===403 || r.status===404 || r.status===401) throw new Error('la chiave non ha il permesso "Actions: Read and write" (vedi Collega watchlist)');
+  if(!r.ok) throw new Error('errore '+r.status);
+}
+async function runAnalysis(){
+  if(document.getElementById('anq').value.trim()) addQuery();
+  if(!queue.length) return;
+  const local = [], remote = [];
+  queue.forEach(q => { const r = findLocal(q); r ? local.push({query:q, status:'ok', symbol:r.ticker, record:r, candidates:[]}) : remote.push(q) });
+  showResults(local);
+  const st = document.getElementById('anstatus');
+  queue = []; renderChips();
+  if(!remote.length){ st.textContent = 'Titoli già presenti nei dati.'; return }
+  if(needToken()) return;
+  const rid = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  try{ await dispatch('preview', remote.join('|'), rid) }catch(e){ st.textContent = 'Analisi non avviata: '+e.message; return }
+  const t0 = Date.now();
+  clearInterval(polling);
+  const tick = async () => {
+    const sec = Math.round((Date.now()-t0)/1000);
+    st.textContent = 'Analisi in corso su GitHub per: '+remote.join(', ')+' … '+Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')+' (di solito 1-3 minuti)';
+    if(sec > 480){ clearInterval(polling); st.textContent = 'L\'analisi sta impiegando più del previsto: riprova tra qualche minuto o controlla la scheda Actions su GitHub.'; return }
+    if(sec < 40 || sec % 10) return;
+    try{
+      const r = await fetch('https://api.github.com/repos/'+REPO+'/contents/previews/'+rid+'.json?ref=main&t='+Date.now(), {headers:ghHeaders(), cache:'no-store'});
+      if(!r.ok) return;
+      const j = JSON.parse(b64d((await r.json()).content));
+      clearInterval(polling);
+      j.results.forEach(it => { if(it.record) PREVIEWS[it.record.ticker] = it.record });
+      st.textContent = 'Analisi completata.';
+      showResults(local.concat(j.results));
+    }catch(e){ /* non ancora pronta */ }
+  };
+  polling = setInterval(tick, 1000);
+}
+async function addFromPreview(k, t, btn){
+  const known = D.records.some(r => r.ticker===t);
+  if(!known && PREVIEWS[t]){
+    // titolo nuovo: lo mostro subito e chiedo a GitHub di inserirlo nei dati della dashboard
+    D.records.push(PREVIEWS[t]); D.records.sort((a,b) => a.ticker.localeCompare(b.ticker));
+    try{ await dispatch('add', t+':'+(k==='wl'?'watchlist':'da_valutare'), Date.now().toString(36)) }
+    catch(e){ toast('Titolo aggiunto alla lista, ma i dati completi arriveranno con il prossimo aggiornamento: '+e.message) }
+  }
+  toggleList(k, t, true);
+  if(btn){ btn.classList.add('on'); btn.textContent = '✓ '+LISTS[k].name }
+  render();
+}
+document.getElementById('anopen').onclick = () => { renderChips(); andlg.showModal(); document.getElementById('anq').focus() };
+document.getElementById('anclose').onclick = () => andlg.close();
+document.getElementById('anadd').onclick = addQuery;
+document.getElementById('anq').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); addQuery() } });
+document.getElementById('anrun').onclick = runAnalysis;
 const dlg = document.getElementById('wldlg');
 function openDlg(msg){
   document.getElementById('dlgrepo').textContent = REPO.split('/')[1];
@@ -452,19 +606,20 @@ document.getElementById('wlsave').onclick = async () => {
     const j = r.ok ? await r.json() : null;
     if(!j || !(j.permissions && j.permissions.push)) throw new Error();
     token = v; try{ localStorage.setItem(TOKEN_KEY, v) }catch(e){}
-    updSetup(); dlg.close(); toast('Dispositivo collegato: ora puoi usare le stelline'); loadWatchlist();
+    updSetup(); dlg.close(); toast('Dispositivo collegato: ora puoi usare stelline, liste e analisi'); loadLists();
   }catch(e){ st.textContent = 'Chiave non valida o senza il permesso "Contents: Read and write" su questo repository.' }
 };
 function updSetup(){ document.getElementById('wlsetup').textContent = token ? 'Watchlist collegata ✓' : 'Collega watchlist' }
 updSetup();
-document.getElementById('onlywl').addEventListener('input', render);
 window.addEventListener('resize', () => { clearTimeout(window.rz); window.rz = setTimeout(render, 200) });
-loadWatchlist();
 document.getElementById('close').onclick = () => { const p = document.getElementById('panel'); p.classList.remove('open'); p.setAttribute('aria-hidden','true') };
 document.addEventListener('keydown', e => { if(e.key==='Escape') document.getElementById('close').click() });
-document.getElementById('tabs').innerHTML = MARKETS.map(m => '<button data-m="'+m+'">'+m+'</button>').join('');
+document.getElementById('tabs').innerHTML = TABS.map(m => '<button data-m="'+m+'">'+m+'</button>').join('');
+updTabs();
+loadLists();
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { market = b.dataset.m; try{localStorage.setItem('mkt',market)}catch(e){} render() });
 ['q','techai','exited'].forEach(id => document.getElementById(id).addEventListener('input', render));
+if(!TABS.includes(market)) market = MARKETS[0];
 const rf = D.macro.rf||{}, erp = D.macro.erp||{};
 document.getElementById('meta').textContent = 'Aggiornato: '+D.generated.replace('T',' ')+' UTC'+(D.prices_updated?' · prezzi e notizie '+D.prices_updated.replace('T',' ')+' UTC':'')+' · Treasury 10Y '+(rf.v??'n.d.')+'% · ERP '+(erp.v??'n.d.')+'% · '+D.records.length+' aziende';
 document.getElementById('fv').textContent = D.finviz_elite ? ', Finviz Elite' : '';

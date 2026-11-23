@@ -1,0 +1,63 @@
+name: Analizza titoli (dalla dashboard)
+
+# Avviato dalla dashboard con la barra "Cerca e analizza titoli".
+#   mode=preview: calcola le metriche e scrive previews/<request_id>.json (l'anteprima)
+#   mode=add:     inserisce i titoli scelti nei dati e nelle liste (Watchlist / Titoli da valutare)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preview oppure add"
+        required: true
+        default: preview
+      payload:
+        description: "Titoli separati da | (es. Hermes|Copart oppure RMS.PA:watchlist)"
+        required: true
+      request_id:
+        description: "Identificativo della richiesta"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  # le anteprime partono subito; le aggiunte si mettono in coda con gli aggiornamenti dei dati
+  group: ${{ inputs.mode == 'add' && 'weekly-screening' || format('analizza-{0}', inputs.request_id) }}
+  cancel-in-progress: false
+
+jobs:
+  analizza:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Analisi
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FINVIZ_AUTH: ${{ secrets.FINVIZ_AUTH }}
+          MODE: ${{ inputs.mode }}
+          PAYLOAD: ${{ inputs.payload }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: python -m screener.analizza "$MODE" --request-id "$REQUEST_ID" --payload "$PAYLOAD"
+      - name: Salva i risultati nel repository
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$MODE" = "add" ]; then PATHS="docs"; MSG="Titoli aggiunti dalla dashboard"; else PATHS="previews"; MSG="Anteprima titoli"; fi
+          for i in 1 2 3 4; do
+            git fetch origin main
+            git reset --mixed origin/main
+            git add -A $PATHS
+            git diff --cached --quiet && exit 0
+            git commit -m "$MSG"
+            git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          exit 1
