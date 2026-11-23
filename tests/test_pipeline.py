@@ -148,6 +148,13 @@ def test_daily_refresh(tmp_path, monkeypatch):
     assert (tmp_path / "index.html").exists()
 
 
+def test_annual_fallback_without_quarters():
+    y = fake("MC.PA")
+    y.inc_q = pd.DataFrame(); y.cf_q = pd.DataFrame()      # conti solo semestrali/annuali
+    o = Engine("MC.PA", y, None, MACRO, CFG).run(set(CFG["skip_by_group"]["default"]))
+    assert o["roic"].v is not None and "ultimo esercizio annuale" in o["roic"].docs[0]["label"]
+
+
 def test_negative_values_no_judgment():
     o = Engine("NEG", fake(neg_eps=True), None, MACRO, CFG).run(set())
     assert o["pe_ttm"].v is None and "negativo" in o["pe_ttm"].note

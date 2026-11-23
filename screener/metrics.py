@@ -121,9 +121,13 @@ class Engine:
     def ttm(self, label: str, *rows: str, kind: str = "inc") -> tuple:
         df = {"inc": self.y.inc_q, "cf": self.y.cf_q}[kind]
         v, dates = yh.ttm(df, *rows)
-        if v is None:
-            return None, None
         page = "financials" if kind == "inc" else "cash-flow"
+        if v is None:
+            # trimestrali non disponibili (es. società europee con conti semestrali): ultimo esercizio annuale
+            v, dt = yh.latest({"inc": self.y.inc_a, "cf": self.y.cf_a}[kind], *rows)
+            if v is None:
+                return None, None
+            return v, self.ydoc(page, f"{label}, ultimo esercizio annuale chiuso il {yh.d(dt)} (trimestrali non disponibili)")
         doc = self.ydoc(page, f"{label}, somma 4 trimestri ({yh.d(dates[-1])} → {yh.d(dates[0])})")
         return v, doc
 
