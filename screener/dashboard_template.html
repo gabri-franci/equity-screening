@@ -44,7 +44,7 @@ details.sector>summary{padding:10px 14px;cursor:pointer;font-weight:600;display:
 details.sector>summary .n{color:var(--muted);font-weight:400}
 .tbl{overflow-x:auto}
 #colwrap{overflow:hidden;margin-top:12px;border:1px solid transparent;border-bottom:0}
-#colwrap table th{border-top:0}
+#colwrap table th{border-top:0;white-space:normal;vertical-align:bottom;line-height:1.2}
 .sector table tr:first-child td{border-top:0}
 .star{border:0;background:none;cursor:pointer;font-size:16px;line-height:1;padding:0 4px 0 0;color:var(--muted);vertical-align:-1px}
 .star.on{color:#d99a00}
@@ -62,7 +62,7 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin
 .news a:hover{text-decoration:underline}
 .news .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .newsfoot a{color:var(--accent)}
-table{border-collapse:collapse;width:100%;min-width:1250px;font-size:13px;table-layout:fixed}
+table{border-collapse:collapse;width:100%;min-width:1450px;font-size:13px;table-layout:fixed}
 th,td{padding:6px 8px;border-top:1px solid var(--border);text-align:right;white-space:nowrap}
 th{color:var(--muted);font-weight:500;background:var(--surface-2)}
 td.l,th.l{text-align:left}
@@ -160,8 +160,8 @@ footer{color:var(--muted);font-size:12px;padding:16px;text-align:center}
 const D = JSON.parse(document.getElementById('data').textContent);
 const C = D.criteria;
 const MARKETS = ['S&P 500','NASDAQ 100'];
-const COLS = ['roic','roe','op_margin','fcf','fcf_margin','rev_cagr3','eps_cagr3','nd_ebitda','de','pe_ttm','ev_ebitda'];
-const SHORT = {fcf:'FCF',roic:'ROIC',roe:'ROE',op_margin:'Op. M.',fcf_margin:'FCF M.',rev_cagr3:'Ricavi 3Y',eps_cagr3:'EPS 3Y',
+const COLS = ['roic','roe','op_margin','fcf','fcf_margin','rev_cagr5','eps_cagr5','nd_ebitda','de','pe_ttm','pe_hist','ev_ebitda','ev_ebitda_hist'];
+const SHORT = {fcf:'FCF',roic:'ROIC',roe:'ROE',op_margin:'Op. M.',fcf_margin:'FCF M.',rev_cagr5:'Ricavi 5Y',eps_cagr5:'EPS 5Y',pe_hist:'P/E Storico',ev_ebitda_hist:'EV/EBITDA Storico',
   nd_ebitda:'ND/EBITDA',de:'D/E',pe_ttm:'P/E',ev_ebitda:'EV/EBITDA'};
 const AREAS = ['Redditività','Crescita','Solidità','Valutazione'];
 let market = MARKETS[0];
@@ -192,7 +192,7 @@ function pctChg(x){
 function chip(l){
   if(!l) return '';
   const cls = {'Molto buono':'c-vgood','Molto bene':'c-vgood','Buono':'c-good','Bene':'c-good','Nella fascia':'c-good',
-    'Sì':'c-good','Sopra fascia':'c-high','Sotto fascia':'c-low','No':'c-no'}[l] || 'c-good';
+    'Sì':'c-good','Sopra fascia':'c-high','Sotto fascia':'c-low','No':'c-no','Sopra media':'c-high','Sotto media':'c-low'}[l] || 'c-good';
   return '<span class="chip '+cls+'">'+esc(l)+'</span>';
 }
 function priceCell(r){
@@ -277,7 +277,8 @@ function openPanel(t){
       if(d.band) sub.push('Fascia '+esc(d.band.group)+': '+d.band.min+'x – '+d.band.max+'x ('+(d.band.origin==='documento'?'dal documento':'proposta')+')');
       if(d.v===null && d.note) sub.push('<b>'+esc(d.note)+'</b>');
       else if(d.note) sub.push(esc(d.note));
-      if(d.series && d.series.length && c.unit!=='money') sub.push('Serie: '+d.series.map(x => x+'%').join(' → '));
+      if(d.series && d.series.length && c.unit!=='money') sub.push('Valori per esercizio (dal più vecchio): '+d.series.map(x => c.unit==='x' ? x+'x' : x+'%').join(' → '));
+      if(d.vs_current) sub.push('Valore attuale '+Number(d.vs_current.current).toFixed(2)+'x: '+(d.vs_current.diff_pct>0?'+':'')+d.vs_current.diff_pct+'% rispetto alla media storica');
       let box = '';
       if(d.deduced){
         box = '<div class="ded"><b>Dato dedotto</b>'+(d.definition?'Formula: '+esc(d.definition)+'<br>':'')+

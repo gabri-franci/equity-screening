@@ -34,7 +34,7 @@ def roic_trend(series: list[float], rule: dict) -> str:
     return ""
 
 
-def rate(metric: str, datum: dict, group: str, cfg: dict) -> dict:
+def rate(metric: str, datum: dict, group: str, cfg: dict, metrics: dict | None = None) -> dict:
     """Ritorna {"label": ..., "band": {...}} per una metrica. Nessun giudizio se il valore manca."""
     crit = cfg["criteria"].get(metric, {})
     v = datum.get("v")
@@ -46,6 +46,13 @@ def rate(metric: str, datum: dict, group: str, cfg: dict) -> dict:
         return out
     if "only_groups" in crit and group not in crit["only_groups"]:
         return out  # soglia valida solo per alcuni settori (es. regola EV/Sales: industriali)
+    if "compare" in crit:  # es. P/E storico: confronto con il valore attuale
+        cur = ((metrics or {}).get(crit["compare"]) or {}).get("v")
+        if isinstance(cur, (int, float)) and v:
+            diff = (cur / v - 1) * 100
+            out["label"] = "Sotto media" if diff < 0 else "Sopra media"
+            out["vs_current"] = {"current": cur, "diff_pct": round(diff, 1)}
+        return out
     if "trend" in crit:
         out["label"] = roic_trend(datum.get("series", []), crit["trend"])
         return out

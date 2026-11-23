@@ -72,12 +72,11 @@ def test_core_metrics():
     # ROIC = 410 × (1−0.20) / (300 + 1000 − 200) = 29.82%
     assert o["roic"].v == pytest.approx(29.82, abs=0.01) and o["roic"].deduced
     assert o["roe"].v == 31.0 and not o["roe"].deduced           # fornito direttamente da Yahoo
-    assert o["rev_cagr3"].v == pytest.approx(10.0, abs=0.01)
+    assert o["rev_cagr5"].v is None and "6 esercizi" in o["rev_cagr5"].note   # Yahoo ha solo 4 esercizi
     assert o["fcf_margin"].v == pytest.approx((450 - 100) / 1340 * 100, abs=0.01)
     assert o["nd_ebitda"].v == pytest.approx(100 / 520, abs=0.01)
     assert o["de"].v == 0.30
     assert o["fwd_lt_ttm"].v is True
-    assert o["roic_3y"].series[0] < o["roic_3y"].series[-1]
     # WACC: Ke = 4 + 1.2×5 = 10%; Kd = 12/300 = 4%; E=9000 D=300
     exp = 9000 / 9300 * 10 + 300 / 9300 * 4 * 0.8
     assert o["wacc"].v == pytest.approx(exp, abs=0.01)
@@ -150,16 +149,25 @@ def test_daily_refresh(tmp_path, monkeypatch):
 def test_negative_values_no_judgment():
     o = Engine("NEG", fake(neg_eps=True), None, MACRO, CFG).run(set())
     assert o["pe_ttm"].v is None and "negativo" in o["pe_ttm"].note
-    assert o["eps_cagr3"].v is None and "≤ 0" in o["eps_cagr3"].note
     assert scoring.rate("pe_ttm", o["pe_ttm"].to_dict(), "tech_ai", CFG) == {}
 
 
 def test_levels_and_bands():
     assert scoring.match_level(22, CFG["criteria"]["roic"]["levels"]) == "Molto buono"
-    assert scoring.match_level(12, CFG["criteria"]["roic"]["levels"]) == "Buono"
     assert scoring.match_level(8, CFG["criteria"]["roic"]["levels"]) == ""
-    assert scoring.match_level(7, CFG["criteria"]["eps_cagr3"]["levels"]) == "Molto buono"
-    assert scoring.match_level(-3, CFG["criteria"]["eps_cagr3"]["levels"]) == ""
+    assert scoring.match_level(12, CFG["criteria"]["roic"]["levels"]) == ""          # soglia Buono ora 15%
+    assert scoring.match_level(16, CFG["criteria"]["roic"]["levels"]) == "Buono"
+    assert scoring.match_level(21, CFG["criteria"]["roe"]["levels"]) == "Molto buono"  # soglia ora 20%
+    assert scoring.match_level(13, CFG["criteria"]["rev_cagr5"]["levels"]) == "Molto buono"
+    assert scoring.match_level(9, CFG["criteria"]["rev_cagr5"]["levels"]) == "Buono"
+    assert scoring.match_level(9, CFG["criteria"]["eps_cagr5"]["levels"]) == "Buono"
+    assert scoring.match_level(7.5, CFG["criteria"]["fcf_cagr5"]["levels"]) == "Buono"
+    assert scoring.match_level(16, CFG["criteria"]["roic_avg5"]["levels"]) == "Buono"
+    assert scoring.match_level(19, CFG["criteria"]["roe_avg5"]["levels"]) == ""
+    assert scoring.match_level(26, CFG["criteria"]["ebitda_margin"]["levels"]) == "Molto buono"
+    assert scoring.match_level(21, CFG["criteria"]["ebitda_margin"]["levels"]) == "Buono"
+    r = scoring.rate("pe_hist", {"v": 20.0}, "tech_ai", CFG, {"pe_ttm": {"v": 25.0}})
+    assert r["label"] == "Sopra media" and r["vs_current"]["diff_pct"] == 25.0
     assert scoring.match_level(-0.5, CFG["criteria"]["nd_ebitda"]["levels"]) == ""   # cassa netta: nessun giudizio
     r = scoring.rate("pe_ttm", {"v": 60}, "tech_ai", CFG)
     assert r["label"] == "Sopra fascia" and r["band"]["origin"] == "documento"
@@ -212,6 +220,8 @@ def test_full_run_offline(tmp_path, monkeypatch):
     assert "roic" not in recs["JPM"]["metrics"] and "rote" in recs["JPM"]["metrics"]
     assert "p_ffo" in recs["O"]["metrics"] and "pe_ttm" not in recs["O"]["metrics"]
     assert recs["AAPL"]["metrics"]["roic"]["label"] == "Molto buono"
+    assert "ebitda_margin" in recs["AAPL"]["metrics"] and "pe_hist" in recs["AAPL"]["metrics"]
+    assert "roic_avg5" not in recs["JPM"]["metrics"] and "roe_avg5" in recs["JPM"]["metrics"]
     assert (tmp_path / "docs" / "screening.xlsx").stat().st_size > 5000
     html = (tmp_path / "docs" / "index.html").read_text()
     assert "__DATA__" not in html and "AAPL" in html
@@ -235,3 +245,55 @@ def test_full_run_offline(tmp_path, monkeypatch):
     assert set(recs) == {"AAPL", "JPM", "O", "GOOGL"}
     assert not recs["JPM"]["memberships"][0]["active"]
     assert recs["O"]["stale"] is True and "p_ffo" in recs["O"]["metrics"]
+
+
+# ------------------------------------------------------------------ storico 5 anni con bilanci SEC simulati
+def sec_facts():
+    def flow(vals):
+        return [{"start": f"{y}-01-01", "end": f"{y}-12-31", "val": v, "form": "10-K", "filed": f"{y + 1}-02-15",
+                 "accn": f"0000000001-{y + 1 - 2000:02d}-000001", "fy": y + 1, "fp": "FY"} for y, v in vals.items()]
+
+    def inst(vals):
+        return [{"end": f"{y}-12-31", "val": v, "form": "10-K", "filed": f"{y + 1}-02-15",
+                 "accn": f"0000000001-{y + 1 - 2000:02d}-000001", "fy": y + 1, "fp": "FY"} for y, v in vals.items()]
+    years = range(2019, 2026)
+    split_before = lambda y: y <= 2022   # frazionamento 2:1 il 2023-06-01: i bilanci fino al FY2022 sono pre-split
+    eps = {y: 2 * 1.08 ** (y - 2019) * (2 if split_before(y) else 1) for y in years}
+    shares = {y: 100e6 / (2 if split_before(y) else 1) for y in years}
+    g = {
+        "Revenues": {"USD": flow({y: 1000e6 * 1.1 ** (y - 2019) for y in years})},
+        "EarningsPerShareDiluted": {"USD/shares": flow(eps)},
+        "OperatingIncomeLoss": {"USD": flow({y: 300e6 for y in years})},
+        "NetIncomeLoss": {"USD": flow({y: 200e6 for y in years})},
+        "IncomeTaxExpenseBenefit": {"USD": flow({y: 50e6 for y in years})},
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": {"USD": flow({y: 250e6 for y in years})},
+        "NetCashProvidedByUsedInOperatingActivities": {"USD": flow({y: 400e6 * 1.07 ** (y - 2019) for y in years})},
+        "PaymentsToAcquirePropertyPlantAndEquipment": {"USD": flow({y: 100e6 for y in years})},
+        "DepreciationDepletionAndAmortization": {"USD": flow({y: 100e6 for y in years})},
+        "WeightedAverageNumberOfDilutedSharesOutstanding": {"shares": flow(shares)},
+        "StockholdersEquity": {"USD": inst({y: 1000e6 for y in years})},
+        "LongTermDebt": {"USD": inst({y: 500e6 for y in years})},
+        "CashAndCashEquivalentsAtCarryingValue": {"USD": inst({y: 300e6 for y in years})},
+    }
+    return {"facts": {"us-gaap": {k: {"units": v} for k, v in g.items()}}}
+
+
+def test_history_5y(monkeypatch):
+    monkeypatch.setattr(sec, "facts", lambda t: sec_facts())
+    monkeypatch.setattr(sec, "cik_for", lambda t: "0000000001")
+    y = fake("HIST")
+    days = pd.bdate_range("2018-01-01", "2025-12-31")
+    y.hist = pd.Series(40.0, index=days)
+    y.splits = pd.Series([2.0], index=[pd.Timestamp("2023-06-01")])
+    o = Engine("HIST", y, None, MACRO, CFG).run(set(CFG["skip_by_group"]["default"]))
+    assert o["rev_cagr5"].v == pytest.approx(10.0, abs=0.01) and "10-K" in o["rev_cagr5"].docs[0]["label"]
+    assert o["eps_cagr5"].v == pytest.approx(8.0, abs=0.01)          # grazie alla rettifica per il frazionamento
+    assert "frazionamenti" in o["eps_cagr5"].why
+    exp_fcf = ((400 * 1.07 ** 6 - 100) / (400 * 1.07 - 100)) ** 0.2 - 1
+    assert o["fcf_cagr5"].v == pytest.approx(exp_fcf * 100, abs=0.01)
+    assert o["roic_avg5"].v == pytest.approx(20.0, abs=0.01) and len(o["roic_avg5"].series) == 5   # 300×0,8/1200
+    assert o["roe_avg5"].v == pytest.approx(20.0, abs=0.01)
+    exp_pe = sum(40 / (2 * 1.08 ** (yy - 2019)) for yy in range(2021, 2026)) / 5
+    assert o["pe_hist"].v == pytest.approx(exp_pe, abs=0.01) and "EPS rettificato" in o["pe_hist"].why
+    assert o["ev_ebitda_hist"].v == pytest.approx(10.5, abs=0.01)   # (40×100M + 500M − 300M) / 400M
+    assert o["ebitda_margin"].v is not None

@@ -24,6 +24,7 @@ class YahooData:
     cf_ttm: pd.DataFrame = field(default_factory=pd.DataFrame)  # rendiconto finanziario ultimi 12 mesi
     hist: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))  # prezzi di chiusura giornalieri, 5 anni
     news: list = field(default_factory=list)  # ultime notizie [{title, url, source, date, summary}]
+    splits: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))  # frazionamenti azionari {data: rapporto}
 
     def url(self, page: str = "") -> str:
         return f"https://finance.yahoo.com/quote/{self.ticker}/{page}".rstrip("/")
@@ -47,12 +48,18 @@ def fetch(ticker: str, retries: int = 3) -> YahooData:
                 except Exception as e:  # una tabella mancante non blocca il resto
                     log.debug("%s %s: %s", ticker, name, e)
             try:
-                start = (pd.Timestamp.today() - pd.DateOffset(years=5, days=20)).date().isoformat()
+                # 7 anni: servono i prezzi a fine esercizio degli ultimi 5 esercizi (P/E ed EV/EBITDA storici)
+                start = (pd.Timestamp.today() - pd.DateOffset(years=7, days=20)).date().isoformat()
                 h = t.history(start=start, interval="1d", auto_adjust=False)
                 if h is not None and not h.empty:
                     c = h["Close"].dropna()
                     c.index = pd.to_datetime(c.index).tz_localize(None).normalize()
                     d.hist = c
+                if h is not None and "Stock Splits" in h:
+                    sp = h["Stock Splits"]
+                    sp = sp[sp > 0]
+                    sp.index = pd.to_datetime(sp.index).tz_localize(None).normalize()
+                    d.splits = sp
             except Exception as e:
                 log.debug("%s history: %s", ticker, e)
             d.news = fetch_news(t)

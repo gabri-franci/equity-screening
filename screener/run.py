@@ -92,7 +92,10 @@ def evaluate(u: dict, fv_all: dict, macro_d: dict, cfg: dict, prev: dict, today:
     skip_key = group if group in cfg["skip_by_group"] else "default"
     skip = set(cfg["skip_by_group"][skip_key])
 
-    metrics = Engine(t, y, fv_row, macro_d, cfg).run(skip)
+    try:
+        metrics = Engine(t, y, fv_row, macro_d, cfg).run(skip)
+    finally:
+        sec.clear()  # i dati SEC di una società servono solo per lei: libera memoria
     return {
         "ticker": t, "name": info.get("longName") or info.get("shortName") or u["name"],
         "sector": sector, "sector_it": SECTOR_IT.get(sector, sector or "Non classificato"), "sector_src": sector_src,
@@ -112,9 +115,9 @@ def apply_scores(records: list[dict], cfg: dict) -> dict:
     meds = scoring.peer_medians(records)
     for r in records:
         for m, d in r["metrics"].items():
-            for k in ("label", "band", "peer"):
+            for k in ("label", "band", "peer", "vs_current"):
                 d.pop(k, None)
-            d.update(scoring.rate(m, d, r["group"], cfg))
+            d.update(scoring.rate(m, d, r["group"], cfg, r["metrics"]))
             pm = meds.get(r["group"], {}).get(m)
             if pm:
                 d["peer"] = pm

@@ -169,51 +169,6 @@ class Engine:
             return base
         return self.cascade(self.fv_get("roic"), from_yahoo)
 
-    def roic_annual(self) -> list[tuple[str, float, dict]]:
-        """ROIC per esercizio (ultimi 3), dai bilanci annuali Yahoo, con fallback SEC."""
-        out = []
-        ebit = yh.annual_series(self.y.inc_a, "Operating Income", "EBIT")
-        debt = yh.annual_series(self.y.bal_a, "Total Debt")
-        eq = yh.annual_series(self.y.bal_a, "Stockholders Equity", "Common Stock Equity")
-        cash = yh.annual_series(self.y.bal_a, "Cash Cash Equivalents And Short Term Investments", "Cash And Cash Equivalents")
-        taxr = yh.annual_series(self.y.inc_a, "Tax Rate For Calcs")
-        lo, hi = self.cfg["wacc"]["tax_clip_pct"]
-        for dt, e in ebit.items():
-            if dt not in eq:
-                continue
-            t = min(max(taxr.get(dt, self.cfg["wacc"]["tax_default_pct"] / 100), lo / 100), hi / 100)
-            ic = debt.get(dt, 0.0) + eq[dt] - cash.get(dt, 0.0)
-            if ic > 0:
-                out.append((yh.d(dt), round(e * (1 - t) / ic * 100, 2),
-                            self.ydoc("financials", f"bilancio annuale esercizio {yh.d(dt)}")))
-        if len(out) >= 3:
-            return out[:3]
-        # fallback SEC
-        e_s = sec.annual(self.t, ["OperatingIncomeLoss"])
-        eq_s = {x[0]: x for x in sec.annual(self.t, ["StockholdersEquity"], flow=False)}
-        debt_s = {x[0]: x[1] for x in sec.annual(self.t, ["LongTermDebt", "LongTermDebtNoncurrent"], flow=False)}
-        cash_s = {x[0]: x[1] for x in sec.annual(self.t, ["CashAndCashEquivalentsAtCarryingValue"], flow=False)}
-        cik = sec.cik_str(self.t)
-        out = []
-        t = self.cfg["wacc"]["tax_default_pct"] / 100
-        for end, val, entry, _ in e_s:
-            if end in eq_s:
-                ic = debt_s.get(end, 0.0) + eq_s[end][1] - cash_s.get(end, 0.0)
-                if ic > 0:
-                    out.append((end, round(val * (1 - t) / ic * 100, 2), sec.doc(cik, entry)))
-        return out[:3]
-
-    def roic_3y(self) -> Datum:
-        series = self.roic_annual()
-        if len(series) < 3:
-            return missing("servono 3 esercizi di bilancio: disponibili " + str(len(series)))
-        vals = [v for _, v, _ in reversed(series)]  # dal più vecchio
-        txt = "; ".join(f"{dt}: {v}%" for dt, v, _ in reversed(series))
-        return Datum(v=vals[-1], src="Bilanci annuali (calcolato)", deduced=True,
-                     definition="ROIC per esercizio = EBIT × (1 − aliquota) / (Debito + PN − Cassa)",
-                     why=f"ROIC ultimi 3 esercizi → {txt}.", docs=[doc for _, _, doc in series],
-                     series=vals)
-
     def wacc(self) -> Datum:
         w = self.cfg["wacc"]
         rf, erp = self.macro.get("rf"), self.macro.get("erp")
@@ -325,56 +280,58 @@ class Engine:
         return self.cascade(direct, quarters, last_year)
 
     # ------------------------------------------------------------ CRESCITA
-    def _cagr3(self, label: str, y_rows: tuple, sec_concepts: list, unit="USD", fcf=False) -> Datum:
-        def from_series(series: list[tuple], src: str, docs_fn):
-            if len(series) < 4:
-                return missing(f"{src}: servono 4 esercizi, disponibili {len(series)}")
-            (e_dt, e_v), (s_dt, s_v) = series[0][:2], series[3][:2]
-            base = Datum(src=src, deduced=True, definition=f"CAGR 3 anni = ({label} ultimo esercizio / {label} di 3 esercizi prima)^(1/3) − 1",
-                         docs=docs_fn(series[0], series[3]))
-            g = cagr(s_v, e_v, 3)
-            if g is None:
-                base.note = (f"non calcolabile: valore iniziale o finale ≤ 0 "
-                             f"({yh.d(s_dt)}: {s_v:,.2f} → {yh.d(e_dt)}: {e_v:,.2f})")
-                return base
-            base.v = pct(g)
-            base.why = f"{label} {yh.d(s_dt)}: {s_v:,.2f} → {yh.d(e_dt)}: {e_v:,.2f}; CAGR = {base.v}%"
-            return base
+    # ------------------------------------------------------- STORICO 5 ANNI
+    @property
+    def hist(self):
+        if not hasattr(self, "_hist"):
+            from .history import FiscalHistory
+            w = self.cfg["wacc"]
+            self._hist = FiscalHistory(self.t, self.y, w["tax_default_pct"] / 100,
+                                       (w["tax_clip_pct"][0] / 100, w["tax_clip_pct"][1] / 100))
+        return self._hist
 
-        def yahoo():
-            if fcf:
-                ocf = yh.annual_series(self.y.cf_a, "Operating Cash Flow")
-                cap = yh.annual_series(self.y.cf_a, "Capital Expenditure")
-                s = {k: v - abs(cap.get(k, 0.0)) for k, v in ocf.items()}
-            else:
-                s = yh.annual_series(self.y.inc_a, *y_rows)
-            series = sorted(s.items(), key=lambda kv: kv[0], reverse=True)
-            page = "cash-flow" if fcf else "financials"
-            return from_series(series, yh.SRC + " (calcolato)",
-                               lambda a, b: [self.ydoc(page, f"bilancio annuale {yh.d(b[0])} e {yh.d(a[0])}")])
+    def rev_cagr5(self):
+        return self.hist.cagr5("rev", "Ricavi")
 
-        def sec_calc():
-            if fcf:
-                ocf = {x[0]: x for x in sec.annual(self.t, ["NetCashProvidedByUsedInOperatingActivities"])}
-                cap = {x[0]: x[1] for x in sec.annual(self.t, ["PaymentsToAcquirePropertyPlantAndEquipment"])}
-                rows = [(k, v[1] - abs(cap.get(k, 0.0)), v[2]) for k, v in ocf.items()]
-            else:
-                rows = [(x[0], x[1], x[2]) for x in sec.annual(self.t, sec_concepts, unit=unit)]
-            rows.sort(key=lambda r: r[0], reverse=True)
-            cik = sec.cik_str(self.t)
-            return from_series(rows, sec.SRC + " (calcolato)", lambda a, b: [sec.doc(cik, b[2]), sec.doc(cik, a[2])])
+    def eps_cagr5(self):
+        return self.hist.cagr5("eps", "EPS diluito")
 
-        return self.cascade(yahoo, sec_calc)
+    def fcf_cagr5(self):
+        return self.hist.cagr5("fcf", "Free Cash Flow", fcf=True)
 
-    def rev_cagr3(self):
-        return self._cagr3("Ricavi", ("Total Revenue",),
-                           ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet"])
+    def roic_avg5(self):
+        return self.hist.roic_avg5()
 
-    def eps_cagr3(self):
-        return self._cagr3("EPS diluito", ("Diluted EPS",), ["EarningsPerShareDiluted"], unit="USD/shares")
+    def roe_avg5(self):
+        return self.hist.roe_avg5()
 
-    def fcf_cagr3(self):
-        return self._cagr3("Free Cash Flow", (), [], fcf=True)
+    def pe_hist(self):
+        return self.hist.pe_hist()
+
+    def ev_ebitda_hist(self):
+        return self.hist.ev_ebitda_hist()
+
+    def ebitda_margin(self) -> Datum:
+        def calc():
+            ebitda, d1 = self.ttm("EBITDA", "EBITDA", "Normalized EBITDA")
+            rev, d2 = self.ttm("Ricavi", "Total Revenue")
+            if ebitda is None or not rev:
+                return None
+            v = pct(ebitda / rev)
+            return Datum(v=v, src=yh.SRC + " (calcolato)", deduced=True, definition="EBITDA TTM / Ricavi TTM",
+                         why=f"{fmt_money(ebitda)} / {fmt_money(rev)} = {v}%", docs=[d1, d2])
+        def from_ebit():
+            ebit, d1 = self.ttm("Utile operativo", "Operating Income", "EBIT")
+            da, d2 = self.ttm("Ammortamenti", "Depreciation And Amortization", "Depreciation Amortization Depletion", kind="cf")
+            rev, d3 = self.ttm("Ricavi", "Total Revenue")
+            if None in (ebit, da) or not rev:
+                return None
+            v = pct((ebit + abs(da)) / rev)
+            return Datum(v=v, src=yh.SRC + " (calcolato)", deduced=True,
+                         definition="(Utile operativo + Ammortamenti) TTM / Ricavi TTM",
+                         why=f"({fmt_money(ebit)} + {fmt_money(abs(da))}) / {fmt_money(rev)} = {v}%", docs=[d1, d2, d3])
+        return self.cascade(lambda: self.yinfo("ebitdaMargins", "Margine EBITDA ultimi 12 mesi (Yahoo)", as_pct=True),
+                            calc, from_ebit)
 
     # ------------------------------------------------------------ SOLIDITA'
     def nd_ebitda(self) -> Datum:
@@ -523,8 +480,9 @@ class Engine:
 
     # ============================================================ RUN
     def run(self, skip: set[str]) -> dict[str, Datum]:
-        order = ["roic", "wacc", "roe", "op_margin", "fcf", "fcf_margin", "rev_cagr3", "eps_cagr3", "fcf_cagr3", "roic_3y",
-                 "nd_ebitda", "de", "current_ratio", "pe_ttm", "pe_fwd", "ev_ebitda", "ev_sales",
+        order = ["roic", "wacc", "roe", "op_margin", "ebitda_margin", "fcf", "fcf_margin",
+                 "rev_cagr5", "eps_cagr5", "fcf_cagr5", "roic_avg5", "roe_avg5",
+                 "nd_ebitda", "de", "current_ratio", "pe_ttm", "pe_hist", "pe_fwd", "ev_ebitda", "ev_ebitda_hist", "ev_sales",
                  "rote", "ptbv", "cet1", "pb", "combined_ratio", "p_ffo"]
         for m in order:
             if m in skip:

@@ -97,6 +97,42 @@ def annual(ticker: str, concepts: list[str], unit: str = "USD", flow: bool = Tru
     return sorted(best.values(), key=lambda x: x[0], reverse=True)
 
 
+def annual_merged(ticker: str, concepts: list[str], unit: str = "USD", flow: bool = True) -> dict[str, tuple]:
+    """Serie annuale da 10-K unendo più etichette XBRL: {fine_esercizio: (valore, entry, concetto)}.
+
+    Le società cambiano etichetta negli anni (es. 'Revenues' → 'RevenueFromContract…' dal 2018):
+    per ogni esercizio si usa la prima etichetta della lista che ha il dato; a parità di
+    etichetta vince il documento depositato più di recente (che include eventuali rettifiche).
+    """
+    f = facts(ticker)
+    if not f:
+        return {}
+    out: dict[str, tuple] = {}
+    for concept, items in _entries(f, concepts, unit):
+        best: dict[str, tuple] = {}
+        for e in items:
+            if not str(e.get("form", "")).startswith("10-K"):
+                continue
+            if flow:
+                try:
+                    days = (date.fromisoformat(e["end"]) - date.fromisoformat(e["start"])).days
+                except Exception:
+                    continue
+                if not 350 <= days <= 380:
+                    continue
+            prev = best.get(e["end"])
+            if prev is None or e.get("filed", "") > prev[1].get("filed", ""):
+                best[e["end"]] = (float(e["val"]), e, concept)
+        for end, v in best.items():
+            out.setdefault(end, v)
+    return out
+
+
+def clear() -> None:
+    """Libera la memoria dei dati SEC già usati (si scaricano ~500 società)."""
+    _cache.clear()
+
+
 def latest_ratio(ticker: str, keywords: list[str], lo: float, hi: float) -> tuple | None:
     """Ultimo rapporto (unità 'pure' o percentuale) il cui nome contiene una delle parole chiave.
 

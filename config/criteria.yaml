@@ -22,7 +22,7 @@ criteria:
     help: Return On Invested Capital — profitto operativo netto per capitale investito
     levels:
       - {label: Molto buono, gt: 20}
-      - {label: Buono, gt: 10}
+      - {label: Buono, gt: 15}        # modificato su richiesta (era 10%)
 
   roic_vs_wacc:
     name: ROIC > WACC
@@ -42,7 +42,7 @@ criteria:
     unit: pct
     help: Utile per € investito dagli azionisti
     levels:
-      - {label: Molto buono, gt: 25}
+      - {label: Molto buono, gt: 20}  # modificato su richiesta (era 25%)
       - {label: Buono, gt: 15}
 
   op_margin:
@@ -53,6 +53,15 @@ criteria:
     levels:
       - {label: Molto buono, gt: 25}
       - {label: Buono, gt: 15}
+
+  ebitda_margin:
+    name: EBITDA Margin (TTM)
+    area: Redditività
+    unit: pct
+    help: EBITDA / Ricavi, ultimi 12 mesi
+    levels:
+      - {label: Molto buono, gt: 25}
+      - {label: Buono, gt: 20}
 
   fcf:
     name: Free Cash Flow (TTM)
@@ -70,46 +79,46 @@ criteria:
       - {label: Buono, gt: 8}
 
   # ------------------------------ CRESCITA ------------------------------
-  rev_cagr3:
-    name: Revenue CAGR 3Y
+  rev_cagr5:
+    name: Revenue CAGR 5Y
     area: Crescita
     unit: pct
-    help: Crescita annua composta dei ricavi, ultimi 3 esercizi
+    help: Crescita annua composta dei ricavi, ultimi 5 esercizi (bilanci SEC 10-K)
     levels:
-      - {label: Molto buono, gt: 10}
-      - {label: Buono, gt: 5}
+      - {label: Molto buono, gt: 12}
+      - {label: Buono, gt: 8}
 
-  eps_cagr3:
-    name: EPS CAGR 3Y
+  eps_cagr5:
+    name: EPS CAGR 5Y
     area: Crescita
     unit: pct
-    help: Crescita annua composta dell'utile per azione diluito, ultimi 3 esercizi
-    # Il documento riporta: "> 5% Buono" e "< 10% Molto Buono".
-    # Applicato alla lettera: tra 5% e 10% Molto buono, da 10% in su Buono.
+    help: Crescita annua composta dell'utile per azione diluito, ultimi 5 esercizi (rettificato per i frazionamenti)
     levels:
-      - {label: Molto buono, gt: 5, lt: 10}
-      - {label: Buono, gte: 10}
+      - {label: Buono, gt: 8}
 
-  fcf_cagr3:
-    name: FCF CAGR 3Y
+  fcf_cagr5:
+    name: FCF CAGR 5Y
     area: Crescita
     unit: pct
-    help: Crescita annua composta del Free Cash Flow, ultimi 3 esercizi
+    help: Crescita annua composta del Free Cash Flow (flusso operativo − capex), ultimi 5 esercizi
     levels:
-      - {label: Molto buono, gt: 10}
-      - {label: Buono, gt: 4}
+      - {label: Buono, gt: 7}
 
-  roic_3y:
-    name: ROIC ultimi 3Y
+  roic_avg5:
+    name: ROIC medio 5Y
     area: Crescita
     unit: pct
-    help: ROIC degli ultimi 3 esercizi — sopra 10% e stabile / in crescita
-    trend:
-      min_each_year: 10        # tutti e 3 gli anni sopra il 10%
-      growth_pp: 1.0           # "in crescita": ultimo anno >= primo anno + 1 punto
-      stable_band_pp: 3.0      # "stabile": max − min entro 3 punti
-      label_growing: Molto buono
-      label_stable: Buono
+    help: Media del ROIC degli ultimi 5 esercizi
+    levels:
+      - {label: Buono, gt: 15}
+
+  roe_avg5:
+    name: ROE medio 5Y
+    area: Crescita
+    unit: pct
+    help: Media del ROE degli ultimi 5 esercizi
+    levels:
+      - {label: Buono, gt: 20}
 
   # ------------------------ SOLIDITA' FINANZIARIA ------------------------
   nd_ebitda:
@@ -145,6 +154,13 @@ criteria:
     unit: x
     band: pe          # fascia di settore (vedi sotto)
 
+  pe_hist:
+    name: P/E Storico (media 5Y)
+    area: Valutazione
+    unit: x
+    help: Media dei P/E a fine esercizio degli ultimi 5 esercizi, confrontata con il P/E attuale
+    compare: pe_ttm
+
   pe_fwd:
     name: P/E Forward
     area: Valutazione
@@ -161,6 +177,13 @@ criteria:
     area: Valutazione
     unit: x
     band: ev_ebitda
+
+  ev_ebitda_hist:
+    name: EV/EBITDA Storico (media 5Y)
+    area: Valutazione
+    unit: x
+    help: Media degli EV/EBITDA a fine esercizio degli ultimi 5 esercizi, confrontata con l'EV/EBITDA attuale
+    compare: ev_ebitda
 
   ev_sales:
     name: EV / Sales
@@ -225,9 +248,9 @@ criteria:
 # Metriche da NON calcolare per gruppo (non hanno senso per quel business)
 # ------------------------------------------------------------------------
 skip_by_group:
-  bank:      [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr3, op_margin, pb, combined_ratio, p_ffo]
-  insurance: [roic, roic_vs_wacc, wacc, roic_3y, nd_ebitda, de, current_ratio, ev_ebitda, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr3, ptbv, rote, cet1, p_ffo]
-  reit:      [pe_ttm, pe_fwd, fwd_lt_ttm, rote, ptbv, cet1, pb, combined_ratio]
+  bank:      [roic, roic_vs_wacc, wacc, roic_avg5, ebitda_margin, nd_ebitda, de, current_ratio, ev_ebitda, ev_ebitda_hist, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr5, op_margin, pb, combined_ratio, p_ffo]
+  insurance: [roic, roic_vs_wacc, wacc, roic_avg5, ebitda_margin, nd_ebitda, de, current_ratio, ev_ebitda, ev_ebitda_hist, ev_sales, ebit_yield_rule, fcf, fcf_margin, fcf_cagr5, ptbv, rote, cet1, p_ffo]
+  reit:      [pe_ttm, pe_hist, pe_fwd, fwd_lt_ttm, rote, ptbv, cet1, pb, combined_ratio]
   default:   [rote, ptbv, cet1, pb, combined_ratio, p_ffo]
 
 

@@ -8,7 +8,8 @@ from openpyxl.utils import get_column_letter
 MARKETS = ["S&P 500", "NASDAQ 100"]
 PRICE_CHG = ["1G", "1S", "1M", "3M", "6M", "YTD", "1A", "3A", "5A"]
 FILL = {"Molto buono": "C6EFCE", "Molto bene": "C6EFCE", "Buono": "E2F0D9", "Bene": "E2F0D9",
-        "Nella fascia": "E2F0D9", "Sì": "E2F0D9", "Sopra fascia": "FCE4D6", "Sotto fascia": "DDEBF7", "No": "FCE4D6"}
+        "Nella fascia": "E2F0D9", "Sì": "E2F0D9", "Sopra fascia": "FCE4D6", "Sotto fascia": "DDEBF7", "No": "FCE4D6",
+        "Sopra media": "FCE4D6", "Sotto media": "DDEBF7"}
 HEAD = Font(bold=True, color="FFFFFF")
 HEAD_FILL = PatternFill("solid", fgColor="1F3864")
 
