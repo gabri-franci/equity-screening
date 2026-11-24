@@ -229,6 +229,19 @@ function priceCell(r){
   const c = (q.changes||{})['1G'];
   return '<td><span class="px">'+Number(q.price).toFixed(2)+'</span>'+((q.currency||'USD')!=='USD'?'<span class="cur">'+esc(q.currency)+'</span>':'')+(c!==null&&c!==undefined?'<span class="chg">'+pctChg(c)+'</span>':'')+'</td>';
 }
+/* titoli appena aggiunti: dati dall'anteprima salvata nel browser, oppure riga "dati in arrivo" */
+function ensureListRecords(){
+  let cache = {}; try{ cache = JSON.parse(localStorage.getItem('pending_recs')||'{}') }catch(e){}
+  const have = new Set(D.records.map(r => r.ticker));
+  Object.keys(cache).forEach(t => { if(have.has(t) && !cache[t].pending) delete cache[t] });   // ormai pubblicato
+  try{ localStorage.setItem('pending_recs', JSON.stringify(cache)) }catch(e){}
+  [...WL, ...DV].forEach(t => {
+    if(have.has(t)) return;
+    const rec = cache[t] || {ticker:t, name:'dati in arrivo (aggiornamento in corso, ricarica tra qualche minuto)', pending:true,
+      sector_it:'Dati in arrivo', group:'other', group_name:'', memberships:[], secondary:[], metrics:{}, quote:{}, news:[], updated:''};
+    D.records.push(rec); have.add(t);
+  });
+}
 function membership(r){
   if(market==='WATCHLIST') return WL.has(r.ticker) ? {active:true, list:true} : undefined;
   if(market==='TITOLI DA VALUTARE') return DV.has(r.ticker) ? {active:true, list:true} : undefined;
@@ -463,6 +476,7 @@ async function loadLists(){
     try{ const {data} = await ghGet(L.path); L.set.clear(); (data.tickers||[]).forEach(t => L.set.add(t)) }catch(e){ /* resta la lista salvata con la pagina */ }
   }
   refreshStars();
+  ensureListRecords();
   if(market==='WATCHLIST' || market==='TITOLI DA VALUTARE') render();
 }
 let saving = Promise.resolve();
@@ -580,6 +594,8 @@ async function addFromPreview(k, t, btn){
   if(!known && PREVIEWS[t]){
     // titolo nuovo: lo mostro subito e chiedo a GitHub di inserirlo nei dati della dashboard
     D.records.push(PREVIEWS[t]); D.records.sort((a,b) => a.ticker.localeCompare(b.ticker));
+    // tengo i dati nel browser finché la versione pubblicata del sito non li contiene
+    try{ const c = JSON.parse(localStorage.getItem('pending_recs')||'{}'); c[t] = PREVIEWS[t]; localStorage.setItem('pending_recs', JSON.stringify(c)) }catch(e){}
     try{ await dispatch('add', t+':'+(k==='wl'?'watchlist':'da_valutare'), Date.now().toString(36)) }
     catch(e){ toast('Titolo aggiunto alla lista, ma i dati completi arriveranno con il prossimo aggiornamento: '+e.message) }
   }
